@@ -119,7 +119,9 @@ router.post('/v1/reply', async (req, res) => {
 router.post('/v1/teardown', (req, res) => {
   store.clearAll();
   const { clearSuppression } = require('../rules/suppression.rules');
+  const { clearConversationState } = require('../services/conversation.service');
   clearSuppression();
+  clearConversationState();
   logger.info('teardown_complete');
   res.json({ ok: true });
 });

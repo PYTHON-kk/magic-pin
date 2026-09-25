@@ -74,8 +74,8 @@ async function handleReply({ conversation_id, merchant_id, customer_id, from_rol
     const totalMerchantAuto = (merchantAutoStreaks.get(mKey) || 0) + 1;
     merchantAutoStreaks.set(mKey, totalMerchantAuto);
 
-    if (conv.autoReplyStreak >= 2 || totalMerchantAuto >= 2 || (turn_number && turn_number >= 3)) {
-      // Already probed once or multiple auto-replies across turns — exit gracefully (Pattern B)
+    if (conv.autoReplyStreak >= 2 || totalMerchantAuto >= 3) {
+      // Already probed once — exit gracefully (Pattern B)
       conv.state = 'COMPLETED';
       store.upsertConversation(conversation_id, conv);
       logger.info('auto_reply_exit', { conversation_id, streak: conv.autoReplyStreak, totalMerchantAuto });
@@ -251,4 +251,8 @@ function buildAutoReplyProbe(merchantId) {
   return `Got it — are you available to chat directly, or is this an auto-reply? If you have 2 minutes, I can show you exactly what's happening on your Google profile.`;
 }
 
-module.exports = { handleReply };
+function clearConversationState() {
+  merchantAutoStreaks.clear();
+}
+
+module.exports = { handleReply, clearConversationState };
