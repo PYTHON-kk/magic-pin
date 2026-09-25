@@ -2,10 +2,12 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
+# Copy package manifests from server/ and install dependencies
+COPY server/package*.json ./
 RUN npm ci --only=production
 
-COPY src/ ./src/
+# Copy source code from server/src/
+COPY server/src/ ./src/
 
 EXPOSE 8080
 
