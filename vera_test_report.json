@@ -1,0 +1,602 @@
+{
+  "bot_url": "https://vera-bot-r8yd.onrender.com",
+  "started_at": "2026-09-25T23:12:41.419801Z",
+  "healthz": {
+    "data": {
+      "status": "ok",
+      "uptime_seconds": 59,
+      "contexts_loaded": {
+        "category": 0,
+        "merchant": 0,
+        "customer": 0,
+        "trigger": 0
+      }
+    },
+    "error": null,
+    "latency_ms": 386.9602680206299,
+    "code": 200
+  },
+  "metadata": {
+    "data": {
+      "team_name": "Team Vera",
+      "team_members": [
+        "Kartik"
+      ],
+      "model": "gemini-flash-lite-latest",
+      "approach": "Trigger-routed prompt templates + post-LLM validator + suppression/anti-repeat rules + conversation state machine",
+      "contact_email": "kartik.ug23@nsut.ac.in",
+      "version": "1.0.0",
+      "submitted_at": "2026-09-25T23:12:43.372Z"
+    },
+    "error": null,
+    "latency_ms": 439.80860710144043,
+    "code": 200
+  },
+  "context_pushes": [
+    {
+      "scope": "category",
+      "id": "dentists",
+      "code": 200,
+      "error": null,
+      "latency_ms": 462.22758293151855
+    },
+    {
+      "scope": "category",
+      "id": "gyms",
+      "code": 200,
+      "error": null,
+      "latency_ms": 399.59192276000977
+    },
+    {
+      "scope": "category",
+      "id": "pharmacies",
+      "code": 200,
+      "error": null,
+      "latency_ms": 458.895206451416
+    },
+    {
+      "scope": "category",
+      "id": "restaurants",
+      "code": 200,
+      "error": null,
+      "latency_ms": 530.4458141326904
+    },
+    {
+      "scope": "category",
+      "id": "salons",
+      "code": 200,
+      "error": null,
+      "latency_ms": 298.59113693237305
+    },
+    {
+      "scope": "merchant",
+      "id": "m_001_drmeera_dentist_delhi",
+      "code": 200,
+      "error": null,
+      "latency_ms": 298.29931259155273
+    },
+    {
+      "scope": "merchant",
+      "id": "m_002_bharat_dentist_mumbai",
+      "code": 200,
+      "error": null,
+      "latency_ms": 288.3801460266113
+    },
+    {
+      "scope": "merchant",
+      "id": "m_003_studio11_salon_hyderabad",
+      "code": 200,
+      "error": null,
+      "latency_ms": 287.4925136566162
+    },
+    {
+      "scope": "merchant",
+      "id": "m_004_glamour_salon_pune",
+      "code": 200,
+      "error": null,
+      "latency_ms": 288.424015045166
+    },
+    {
+      "scope": "merchant",
+      "id": "m_005_pizzajunction_restaurant_delhi",
+      "code": 200,
+      "error": null,
+      "latency_ms": 356.31394386291504
+    },
+    {
+      "scope": "merchant",
+      "id": "m_006_southindiancafe_restaurant_bangalore",
+      "code": 200,
+      "error": null,
+      "latency_ms": 412.1394157409668
+    },
+    {
+      "scope": "merchant",
+      "id": "m_007_powerhouse_gym_bangalore",
+      "code": 200,
+      "error": null,
+      "latency_ms": 291.13173484802246
+    },
+    {
+      "scope": "merchant",
+      "id": "m_008_zenyoga_gym_chennai",
+      "code": 200,
+      "error": null,
+      "latency_ms": 295.78542709350586
+    },
+    {
+      "scope": "merchant",
+      "id": "m_009_apollo_pharmacy_jaipur",
+      "code": 200,
+      "error": null,
+      "latency_ms": 268.8910961151123
+    },
+    {
+      "scope": "merchant",
+      "id": "m_010_sunrisepharm_pharmacy_lucknow",
+      "code": 200,
+      "error": null,
+      "latency_ms": 259.07230377197266
+    },
+    {
+      "scope": "customer",
+      "id": "c_001_priya_for_m001",
+      "code": 200,
+      "error": null,
+      "latency_ms": 290.53616523742676
+    },
+    {
+      "scope": "customer",
+      "id": "c_002_rohit_for_m001",
+      "code": 200,
+      "error": null,
+      "latency_ms": 250.8246898651123
+    },
+    {
+      "scope": "customer",
+      "id": "c_003_aanya_for_m001",
+      "code": 200,
+      "error": null,
+      "latency_ms": 283.98633003234863
+    },
+    {
+      "scope": "customer",
+      "id": "c_004_sneha_for_m003",
+      "code": 200,
+      "error": null,
+      "latency_ms": 300.56238174438477
+    },
+    {
+      "scope": "customer",
+      "id": "c_005_kavya_for_m003",
+      "code": 200,
+      "error": null,
+      "latency_ms": 273.1177806854248
+    },
+    {
+      "scope": "customer",
+      "id": "c_006_amit_for_m005",
+      "code": 200,
+      "error": null,
+      "latency_ms": 288.1615161895752
+    },
+    {
+      "scope": "customer",
+      "id": "c_007_naveen_for_m006",
+      "code": 200,
+      "error": null,
+      "latency_ms": 290.0660037994385
+    },
+    {
+      "scope": "customer",
+      "id": "c_008_dipti_for_m006",
+      "code": 200,
+      "error": null,
+      "latency_ms": 293.5831546783447
+    },
+    {
+      "scope": "customer",
+      "id": "c_009_arjun_for_m007",
+      "code": 200,
+      "error": null,
+      "latency_ms": 265.8498287200928
+    },
+    {
+      "scope": "customer",
+      "id": "c_010_rashmi_for_m007",
+      "code": 200,
+      "error": null,
+      "latency_ms": 286.3948345184326
+    },
+    {
+      "scope": "customer",
+      "id": "c_011_sumitra_for_m008",
+      "code": 200,
+      "error": null,
+      "latency_ms": 274.93977546691895
+    },
+    {
+      "scope": "customer",
+      "id": "c_012_karthik_jr_for_m008",
+      "code": 200,
+      "error": null,
+      "latency_ms": 356.1270236968994
+    },
+    {
+      "scope": "customer",
+      "id": "c_013_grandfather_for_m009",
+      "code": 200,
+      "error": null,
+      "latency_ms": 257.92622566223145
+    },
+    {
+      "scope": "customer",
+      "id": "c_014_priti_for_m009",
+      "code": 200,
+      "error": null,
+      "latency_ms": 272.3407745361328
+    },
+    {
+      "scope": "customer",
+      "id": "c_015_anonymous_for_m010",
+      "code": 200,
+      "error": null,
+      "latency_ms": 332.5991630554199
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_001_research_digest_dentists",
+      "code": 200,
+      "error": null,
+      "latency_ms": 281.9230556488037
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_002_compliance_dci_radiograph",
+      "code": 200,
+      "error": null,
+      "latency_ms": 258.27980041503906
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_003_recall_due_priya",
+      "code": 200,
+      "error": null,
+      "latency_ms": 320.97935676574707
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_004_perf_dip_bharat",
+      "code": 200,
+      "error": null,
+      "latency_ms": 301.70392990112305
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_005_renewal_due_bharat",
+      "code": 200,
+      "error": null,
+      "latency_ms": 274.71399307250977
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_006_festival_diwali",
+      "code": 200,
+      "error": null,
+      "latency_ms": 300.0788688659668
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_007_bridal_followup_kavya",
+      "code": 200,
+      "error": null,
+      "latency_ms": 270.59149742126465
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_008_curious_ask_studio11",
+      "code": 200,
+      "error": null,
+      "latency_ms": 266.40915870666504
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_009_winback_glamour",
+      "code": 200,
+      "error": null,
+      "latency_ms": 276.4894962310791
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_010_ipl_match_delhi",
+      "code": 200,
+      "error": null,
+      "latency_ms": 301.4066219329834
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_011_review_theme_late_delivery",
+      "code": 200,
+      "error": null,
+      "latency_ms": 264.84060287475586
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_012_milestone_mylari",
+      "code": 200,
+      "error": null,
+      "latency_ms": 296.4777946472168
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_013_corporate_thali_planning",
+      "code": 200,
+      "error": null,
+      "latency_ms": 364.31145668029785
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_014_seasonal_acquisition_dip_powerhouse",
+      "code": 200,
+      "error": null,
+      "latency_ms": 275.94637870788574
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_015_winback_rashmi",
+      "code": 200,
+      "error": null,
+      "latency_ms": 275.4943370819092
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_016_kids_yoga_program_drafting",
+      "code": 200,
+      "error": null,
+      "latency_ms": 299.7322082519531
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_017_kids_yoga_trial_followup_karthik",
+      "code": 200,
+      "error": null,
+      "latency_ms": 303.6377429962158
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_018_supply_atorvastatin_recall",
+      "code": 200,
+      "error": null,
+      "latency_ms": 272.14908599853516
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_019_chronic_refill_grandfather",
+      "code": 200,
+      "error": null,
+      "latency_ms": 300.89688301086426
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_020_summer_demand_shift",
+      "code": 200,
+      "error": null,
+      "latency_ms": 266.62230491638184
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_021_unverified_gbp_sunrise",
+      "code": 200,
+      "error": null,
+      "latency_ms": 284.3940258026123
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_022_cde_webinar_dentists",
+      "code": 200,
+      "error": null,
+      "latency_ms": 270.7958221435547
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_023_competitor_opened_dentist",
+      "code": 200,
+      "error": null,
+      "latency_ms": 276.0729789733887
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_024_perf_spike_zen",
+      "code": 200,
+      "error": null,
+      "latency_ms": 286.0100269317627
+    },
+    {
+      "scope": "trigger",
+      "id": "trg_025_dormancy_glamour",
+      "code": 200,
+      "error": null,
+      "latency_ms": 294.4951057434082
+    }
+  ],
+  "tick_actions": [
+    {
+      "action": {
+        "conversation_id": "conv_m_001_drmeera_dentist_delhi_trg_002_compliance_dci_radiograph",
+        "merchant_id": "m_001_drmeera_dentist_delhi",
+        "customer_id": null,
+        "send_as": "vera",
+        "trigger_id": "trg_002_compliance_dci_radiograph",
+        "template_name": "vera_compliance_alert_v1",
+        "template_params": [
+          "Meera"
+        ],
+        "body": "Dr. Meera, DCI ne 2026-11-04 circular mein IOPA exposure limit 1.5 mSv se ghata kar 1.0 mSv kar di hai, effective 15 Dec 2026. Aapke Lajpat Nagar clinic mein agar D-speed film use ho rahi hai toh wo new limit pass nahi karegi (RVG aur E-speed safe hain).\n\nKya aapne apne X-ray unit ki current settings audit kar li hain?",
+        "cta": "open_ended",
+        "suppression_key": "compliance:dci_radiograph:2026",
+        "rationale": "Surfaces the DCI radiograph regulation compliance item, ties it to clinic equipment specifications in Lajpat Nagar, and asks a low-friction open-ended clinical question without any sales pitch."
+      },
+      "trigger_kind": "regulation_change",
+      "trigger_scope": "merchant",
+      "merchant_name": "Dr. Meera's Dental Clinic",
+      "category": "dentists",
+      "customer_name": null,
+      "latency_ms": 6772.180080413818
+    },
+    {
+      "action": {
+        "conversation_id": "conv_m_001_drmeera_dentist_delhi_trg_003_recall_due_priya",
+        "merchant_id": "m_001_drmeera_dentist_delhi",
+        "customer_id": "c_001_priya_for_m001",
+        "send_as": "merchant_on_behalf",
+        "trigger_id": "trg_003_recall_due_priya",
+        "template_name": "merchant_recall_reminder_v1",
+        "template_params": [
+          "Priya",
+          "12 May 2026",
+          "₹299"
+        ],
+        "body": "Hi Priya, aapka 6-month dental cleaning recall due ho gaya hai (last visit thi 12 May 2026). Scaling aur plaque removal ke liye agar aapko convenient lage, toh Wed 5 Nov, 6pm ya Thu 6 Nov, 5pm mein se ek slot book kar lein? Dental Cleaning @ ₹299 offer ke sath available hai.",
+        "cta": "binary_yes_stop",
+        "suppression_key": "recall:c_001_priya_for_m001:6mo",
+        "rationale": "Drafted a customer-facing recall reminder from Dr. Meera's clinic to Priya using her exact history (last visit 12 May 2026), active offer pricing (₹299), and specific slot options (Wed 5 Nov, 6pm). Uses natural Hinglish code-mixing and strict binary CTA."
+      },
+      "trigger_kind": "recall_due",
+      "trigger_scope": "customer",
+      "merchant_name": "Dr. Meera's Dental Clinic",
+      "category": "dentists",
+      "customer_name": "Priya",
+      "latency_ms": 6772.180080413818
+    },
+    {
+      "action": {
+        "conversation_id": "conv_m_003_studio11_salon_hyderabad_trg_007_bridal_followup_kavya",
+        "merchant_id": "m_003_studio11_salon_hyderabad",
+        "customer_id": "c_005_kavya_for_m003",
+        "send_as": "merchant_on_behalf",
+        "trigger_id": "trg_007_bridal_followup_kavya",
+        "template_name": "merchant_bridal_followup_v1",
+        "template_params": [
+          "Kavya",
+          "March 22",
+          "November 8, 2026",
+          "Studio11 Family Salon"
+        ],
+        "body": "Hi Kavya, hope you loved your bridal trial look on March 22th at Studio11 Family Salon! With your big day on November 8, 2026 coming up, now is the ideal time to kick off your 30-day skin prep program. Would you like to schedule your first session for this Saturday?",
+        "cta": "binary_yes_stop",
+        "suppression_key": "bridal_followup:c_005_kavya_for_m003",
+        "rationale": "Drafted a customer-facing WhatsApp message from Studio11 Family Salon to Kavya following up on her trial completed on March 22 ahead of her Nov 8 wedding. Utilized the trial date and wedding date from the trigger context while adhering strictly to her consent scope for bridal package follow-ups."
+      },
+      "trigger_kind": "wedding_package_followup",
+      "trigger_scope": "customer",
+      "merchant_name": "Studio11 Family Salon",
+      "category": "salons",
+      "customer_name": "Kavya",
+      "latency_ms": 6772.180080413818
+    },
+    {
+      "action": {
+        "conversation_id": "conv_m_003_studio11_salon_hyderabad_trg_006_festival_diwali",
+        "merchant_id": "m_003_studio11_salon_hyderabad",
+        "customer_id": null,
+        "send_as": "vera",
+        "trigger_id": "trg_006_festival_diwali",
+        "template_name": "vera_festival_v1",
+        "template_params": [
+          "Lakshmi",
+          "Studio11 Family Salon"
+        ],
+        "body": "Hi Lakshmi, Studio11 Family Salon team. Diwali 2026 is 188 days away, and peak season bookings usually spike early for styling services like Priya's balayage. Since your Hair Spa @ ₹499 is already active, shall we prep a festive advance booking campaign now? Reply YES or STOP.",
+        "cta": "binary_yes_stop",
+        "suppression_key": "festival:diwali:2026:m_003",
+        "rationale": "Leverages upcoming Diwali 2026 timeline and active hair spa offer to prompt advance planning, using peer social proof and a binary CTA."
+      },
+      "trigger_kind": "festival_upcoming",
+      "trigger_scope": "merchant",
+      "merchant_name": "Studio11 Family Salon",
+      "category": "salons",
+      "customer_name": null,
+      "latency_ms": 6772.180080413818
+    }
+  ],
+  "reply_probes": [
+    {
+      "probe": "auto_reply",
+      "turn": 1,
+      "sent": "Thank you for contacting us. Our team will get back to you shortly.",
+      "response": {
+        "action": "send",
+        "body": "Samajh gayi — kya aap directly baat kar rahe hain ya yeh auto-reply hai? Agar aap available hain toh 2 minute mein bata sakti hoon aapke Google profile mein kya improve ho sakta hai.",
+        "cta": "open_ended",
+        "rationale": "Auto-reply suspected. Sending one direct probe before deciding to exit."
+      },
+      "error": null,
+      "latency_ms": 318.9854621887207,
+      "code": 200
+    },
+    {
+      "probe": "auto_reply",
+      "turn": 2,
+      "sent": "Thank you for contacting us. Our team will get back to you shortly.",
+      "response": {
+        "action": "end",
+        "rationale": "Detected canned auto-reply after probe attempt. Exiting to avoid wasting turns (Pattern B)."
+      },
+      "error": null,
+      "latency_ms": 281.80408477783203,
+      "code": 200
+    },
+    {
+      "probe": "auto_reply",
+      "turn": 3,
+      "sent": "Thank you for contacting us. Our team will get back to you shortly.",
+      "response": {
+        "action": "end",
+        "rationale": "Conversation already completed."
+      },
+      "error": null,
+      "latency_ms": 282.8989028930664,
+      "code": 200
+    },
+    {
+      "probe": "intent_handoff",
+      "sent": "Haan theek hai, chalo karte hain, sign me up",
+      "response": {
+        "action": "send",
+        "body": "Dr. Meera, maine aapke whitening aur aligners ke liye 3 Google posts draft kar diye hain, focusing on clear aligner consultations and scaling procedures. Aap Lajpat Nagar clinic ke liye unhe check karna chahenge?\n\nReply YES to review them.",
+        "cta": "binary_yes_stop",
+        "rationale": "Intent transition detected (\"Haan theek hai, chalo karte ha...\"). Routing directly to action mode — no more qualifying questions. The merchant agreed to sign up and requested posts on whitening and aligners. Vera is now taking action by presenting the drafted posts as requested, using peer-clinical terminology like aligners and scaling, and leveraging binary CTA for review."
+      },
+      "error": null,
+      "latency_ms": 1709.2185020446777,
+      "code": 200
+    },
+    {
+      "probe": "hostile",
+      "sent": "Stop messaging me. This is spam.",
+      "response": {
+        "action": "end",
+        "rationale": "Merchant/customer signaled opt-out or \"not interested\". Exiting gracefully per challenge rules."
+      },
+      "error": null,
+      "latency_ms": 349.17259216308594,
+      "code": 200
+    },
+    {
+      "probe": "curveball",
+      "sent": "Wait, who are you and how did you get this number?",
+      "response": {
+        "action": "send",
+        "body": "Dr. Meera, main Vera hoon — magicpin se aapki merchant assistant. Aapke number par message isliye kyunki aapki clinic ka Lajpat Nagar profile manage karne mein help milti hai, especially abhi jab aapke aligners aur whitening queries ke liye posts stale (22 days) ho gaye hain.\n\nYeh lijiye first draft aligner conversion ke liye:\n\n\"Discreetly straighten your smile with clear aligners at Dr. Meera's Dental Clinic in Lajpat Nagar. Book your consultation today!\"\n\nShall I send the remaining 2 drafts for whitening?",
+        "cta": "binary_yes_stop",
+        "rationale": "Directly answered the merchant's identity question by referencing our platform role and Lajpat Nagar profile management, followed through on the requested aligner/whitening post drafts, and used a binary CTA to keep the workflow moving."
+      },
+      "error": null,
+      "latency_ms": 2038.9068126678467,
+      "code": 200
+    }
+  ],
+  "issues": [],
+  "tick_latency_ms": 6772.180080413818,
+  "finished_at": "2026-09-25T23:13:11.313267Z"
+}

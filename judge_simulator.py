@@ -21,7 +21,7 @@ Author: magicpin AI Challenge Team
 # =============================================================================
 
 # Your bot's URL (where your bot is running)
-BOT_URL = "http://localhost:8080"
+BOT_URL = "https://vera-bot-r8yd.onrender.com"
 
 # ── LLM settings for the JUDGE (reads from project .env automatically) ──
 # You do NOT need to paste your key here — it is loaded from d:\magic-pin\.env

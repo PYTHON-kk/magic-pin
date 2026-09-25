@@ -57,20 +57,35 @@ npm run dev
 | POST | /v1/reply | Handle merchant/customer replies |
 | POST | /v1/teardown | Wipe state (optional) |
 
-## Testing
+## Testing & Evaluation
 
+### 1. Challenge Test Harness
+Run the automated test suite matching the judge's exact test harness:
 ```bash
-# Set your bot URL and LLM provider in judge_simulator.py
-export BOT_URL=http://localhost:8080
+export BOT_URL=https://vera-bot-r8yd.onrender.com
+python test_vera_bot.py
+```
+This generates `vera_test_report.json` covering context pushes, `/v1/tick` actions, and all 4 behavioral probes.
+
+### 2. Interactive Merchant Chat
+Converse directly with Vera as a merchant in real time:
+```bash
+python chat_cli.py https://vera-bot-r8yd.onrender.com
+```
+
+### 3. Local Judge Simulator
+```bash
 python judge_simulator.py
 ```
 
-Run scenarios in order: `warmup` → `phase2_short` → `auto_reply_hell` → `intent_transition` → `hostile` → `full_evaluation`.
+## Live Deployment
 
-## Deployment
+- **Public HTTPS URL**: `https://vera-bot-r8yd.onrender.com`
+- **Health check**: `https://vera-bot-r8yd.onrender.com/v1/healthz`
+- **Metadata**: `https://vera-bot-r8yd.onrender.com/v1/metadata`
+- **Host**: Render (Docker container, Node 20 alpine, always-on)
 
+To run locally with Docker:
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
-
-Or deploy to Railway/Render/Fly with the Dockerfile.
