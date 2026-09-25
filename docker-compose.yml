@@ -3,7 +3,7 @@ version: '3.8'
 services:
   vera-bot:
     build:
-      context: ./server
+      context: .
       dockerfile: Dockerfile
     ports:
       - "${PORT:-8080}:8080"
