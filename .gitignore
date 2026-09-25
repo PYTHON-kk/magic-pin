@@ -1,6 +1,68 @@
-node_modules/
+# =============================================================================
+# Git Ignore - Vera AI Bot
+# =============================================================================
+
+# Environment & Secrets (NEVER commit secrets or real keys)
 .env
+.env*.local
+.env.backup
+*.key
+*.pem
+
+# Dependencies
+node_modules/
+package-lock.json.backup
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python cache & compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.eggs/
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Logs & Runtime
 *.log
+logs/
+
+# Operating System Files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# Build, dist, coverage & scratch
 dist/
+build/
 coverage/
+.cache/
+.system_generated/
+scratch/
+tmp/
+temp/
