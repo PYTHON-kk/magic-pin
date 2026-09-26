@@ -427,20 +427,41 @@
         version: 1,
         payload: {
           slug: 'dentists',
-          voice: { tone: 'peer_clinical', vocab_preferred: ['chair time', 'OPD'], vocab_taboo: ['cheap', 'sale'] },
+          display_name: 'Dentists',
+          voice: {
+            tone: 'peer_clinical',
+            register: 'respectful_collegial',
+            vocab_allowed: ['chair time', 'OPD', 'fluoride varnish', 'scaling', 'caries', 'aligner'],
+            vocab_taboo: ['cheap', 'sale', 'guaranteed', '100% safe'],
+          },
         },
         delivered_at: new Date().toISOString(),
       });
 
-      // Seed merchant
+      // Seed merchant with active offers & performance
       await api('/v1/context', 'POST', {
         scope: 'merchant',
         context_id: 'm_001_drmeera_dentist_delhi',
         version: 1,
         payload: {
-          identity: { name: "Dr. Meera's Dental Clinic", owner_first_name: 'Meera', locality: 'Lajpat Nagar, Delhi', languages: ['en', 'hi'] },
+          merchant_id: 'm_001_drmeera_dentist_delhi',
           category_slug: 'dentists',
-          performance: { views: 1420, calls: 38, ctr: 0.042 },
+          identity: {
+            name: "Dr. Meera's Dental Clinic",
+            owner_first_name: 'Meera',
+            locality: 'Lajpat Nagar',
+            city: 'Delhi',
+            languages: ['en', 'hi'],
+          },
+          performance: { views: 2410, calls: 18, ctr: 0.021 },
+          offers: [
+            { id: 'o_meera_001', title: 'Dental Cleaning @ ₹299', status: 'active', started: '2026-03-01' },
+            { id: 'o_meera_002', title: 'Deep Cleaning @ ₹499', status: 'expired', ended: '2026-02-28' },
+          ],
+          review_themes: [
+            { theme: 'wait_time', sentiment: 'neg', occurrences_30d: 3 },
+            { theme: 'doctor_manner', sentiment: 'pos', occurrences_30d: 5 },
+          ],
         },
         delivered_at: new Date().toISOString(),
       });

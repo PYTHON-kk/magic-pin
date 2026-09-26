@@ -5,6 +5,7 @@
  * No database required — a 60-min test with no expected restarts means Maps suffice.
  */
 const logger = require('../utils/logger');
+const seedLoader = require('../data/seedLoader');
 
 // Key: `${scope}:${context_id}` → {version, payload}
 const contexts = new Map();
@@ -37,7 +38,11 @@ function upsertContext(scope, contextId, version, payload) {
 }
 
 function getContext(scope, contextId) {
-  return contexts.get(`${scope}:${contextId}`)?.payload ?? null;
+  const cur = contexts.get(`${scope}:${contextId}`);
+  if (cur && cur.payload) {
+    return cur.payload;
+  }
+  return seedLoader.getFallbackContext(scope, contextId);
 }
 
 function getContextVersion(scope, contextId) {
