@@ -24,7 +24,7 @@ async function processTickActions(availableTriggerIds, now) {
   const actions = [];
   const nowDate = now ? new Date(now) : new Date();
 
-  // Sort triggers by urgency (higher first) for prioritization
+  // 1. Gather all triggers in memory
   const triggersWithData = [];
   for (const trgId of availableTriggerIds) {
     const trigger = store.getContext('trigger', trgId);
@@ -35,18 +35,44 @@ async function processTickActions(availableTriggerIds, now) {
     triggersWithData.push({ id: trgId, trigger });
   }
 
-  // Sort by urgency descending
+  // 2. Sort by urgency descending
   triggersWithData.sort((a, b) => (b.trigger.urgency || 0) - (a.trigger.urgency || 0));
 
-  // Process up to MAX_ACTIONS_PER_TICK
-  for (const { id: trgId, trigger } of triggersWithData.slice(0, MAX_ACTIONS_PER_TICK)) {
-    try {
-      const action = await evaluateAndCompose(trigger, trgId, nowDate);
-      if (action) {
-        actions.push(action);
-      }
-    } catch (err) {
-      logger.error('tick_trigger_error', { triggerId: trgId, error: err.message });
+  // 3. Pre-filter eligible triggers synchronously (0ms)
+  const eligible = [];
+  for (const { id: trgId, trigger } of triggersWithData) {
+    const merchantId = trigger.merchant_id;
+    if (!merchantId) continue;
+
+    const merchant = store.getContext('merchant', merchantId);
+    if (!merchant) continue;
+
+    const categorySlug = merchant.category_slug;
+    const category = categorySlug ? store.getContext('category', categorySlug) : null;
+    if (!category) continue;
+
+    if (isSuppressed(trigger.suppression_key)) continue;
+
+    if (trigger.expires_at && nowDate > new Date(trigger.expires_at)) continue;
+
+    const customerId = trigger.customer_id || null;
+    const customer = customerId ? store.getContext('customer', customerId) : null;
+    if (customer && trigger.scope === 'customer' && customer.preferences?.reminder_opt_in === false) continue;
+
+    eligible.push({ trgId, trigger, merchant, category, customer });
+  }
+
+  // 4. Process up to 6 highest-urgency triggers in parallel to avoid Render gateway timeout
+  const batch = eligible.slice(0, 6);
+  const results = await Promise.allSettled(
+    batch.map(({ trgId, trigger, merchant, category, customer }) =>
+      composeActionForTrigger({ trgId, trigger, merchant, category, customer, nowDate })
+    )
+  );
+
+  for (const r of results) {
+    if (r.status === 'fulfilled' && r.value) {
+      actions.push(r.value);
     }
   }
 
@@ -54,59 +80,12 @@ async function processTickActions(availableTriggerIds, now) {
 }
 
 /**
- * Evaluate a single trigger through the decision pipeline.
+ * Compose message and build action object for an eligible trigger.
  */
-async function evaluateAndCompose(trigger, triggerId, nowDate) {
-  // ── Step 1: Eligibility ──
-  // Check trigger has required merchant reference
+async function composeActionForTrigger({ trgId, trigger, merchant, category, customer, nowDate }) {
   const merchantId = trigger.merchant_id;
-  if (!merchantId) {
-    logger.debug('trigger_no_merchant', { triggerId });
-    return null;
-  }
-
-  // ── Step 2: Get associated contexts ──
-  const merchant = store.getContext('merchant', merchantId);
-  if (!merchant) {
-    logger.debug('merchant_not_found', { triggerId, merchantId });
-    return null;
-  }
-
-  const categorySlug = merchant.category_slug;
-  const category = categorySlug ? store.getContext('category', categorySlug) : null;
-  if (!category) {
-    logger.debug('category_not_found', { triggerId, categorySlug });
-    return null;
-  }
-
   const customerId = trigger.customer_id || null;
-  const customer = customerId ? store.getContext('customer', customerId) : null;
-
-  // ── Step 3: Suppression check ──
-  if (isSuppressed(trigger.suppression_key)) {
-    logger.debug('trigger_suppressed', { triggerId, key: trigger.suppression_key });
-    return null;
-  }
-
-  // ── Step 4: Expiration check ──
-  if (trigger.expires_at) {
-    const expiresAt = new Date(trigger.expires_at);
-    if (nowDate > expiresAt) {
-      logger.debug('trigger_expired', { triggerId, expiresAt: trigger.expires_at });
-      return null;
-    }
-  }
-
-  // ── Step 5: Consent check (customer-facing) ──
-  if (customer && trigger.scope === 'customer') {
-    if (customer.preferences?.reminder_opt_in === false) {
-      logger.debug('customer_opted_out', { triggerId, customerId });
-      return null;
-    }
-  }
-
-  // ── Step 6: Compose message ──
-  const conversationId = `conv_${merchantId}_${triggerId}`;
+  const conversationId = `conv_${merchantId}_${trgId}`;
 
   const draft = await composeMessage({
     category,
@@ -117,24 +96,22 @@ async function evaluateAndCompose(trigger, triggerId, nowDate) {
   });
 
   if (!draft) {
-    logger.debug('composition_returned_null', { triggerId });
+    logger.debug('composition_returned_null', { triggerId: trgId });
     return null;
   }
 
-  // ── Step 7: Mark suppression ──
+  // Mark suppression
   markSuppressed(trigger.suppression_key);
 
-  // ── Step 8: Build action ──
   const isCustomerFacing = !!customer && trigger.scope === 'customer';
 
-  // Create the conversation in store for future /v1/reply handling
+  // Create or update conversation
   store.createConversation(conversationId, {
     merchantId,
     customerId,
-    triggerId,
+    triggerId: trgId,
   });
 
-  // Record bot's opening message as first turn
   const conv = store.getConversation(conversationId);
   if (conv) {
     conv.turns.push({ from: 'vera', message: draft.body, turn: 1 });
@@ -146,7 +123,7 @@ async function evaluateAndCompose(trigger, triggerId, nowDate) {
     merchant_id: merchantId,
     customer_id: customerId,
     send_as: isCustomerFacing ? 'merchant_on_behalf' : 'vera',
-    trigger_id: triggerId,
+    trigger_id: trgId,
     template_name: templateNameFor(trigger.kind),
     template_params: draft.templateParams || [],
     body: draft.body,
