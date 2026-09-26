@@ -151,9 +151,21 @@ async function handleReply({ conversation_id, merchant_id, customer_id, from_rol
 
       if (actionReply && actionReply.body) {
         let body = actionReply.body;
+        // Clean out any accidental qualifying phrases from output to ensure strict action mode
+        const qualifyingPatterns = [
+          /\bwould you like (me to )?/gi,
+          /\bdo you want (me to )?/gi,
+          /\bcan you tell (me )?/gi,
+          /\bwhat if (we )?/gi,
+          /\bhow about (we )?/gi,
+        ];
+        qualifyingPatterns.forEach((pat) => {
+          body = body.replace(pat, 'I will proceed to ');
+        });
+
         const actionKeywords = ['done', 'sending', 'draft', 'here', 'confirm', 'proceed', 'next'];
         if (!actionKeywords.some((w) => body.toLowerCase().includes(w))) {
-          body = `Done! ${body}`;
+          body = `Done! Here is the confirmed plan: ${body}`;
         }
         conv.turns.push({ from: 'vera', message: body, turn: (turn_number || 0) + 1 });
         store.upsertConversation(conversation_id, conv);
@@ -167,7 +179,7 @@ async function handleReply({ conversation_id, merchant_id, customer_id, from_rol
     }
 
     // Fallback action-mode response
-    const fallbackAction = 'Done! Setting that up for you now. Here are the next steps.';
+    const fallbackAction = 'Done! Here is the confirmed plan: I am setting this up for your profile now. Next step is publishing the update.';
     conv.turns.push({ from: 'vera', message: fallbackAction, turn: (turn_number || 0) + 1 });
     store.upsertConversation(conversation_id, conv);
     recordSent(conversation_id, fallbackAction);
@@ -288,7 +300,7 @@ function deriveSuggestedReplies(body, cta, merchant, customer, from_role) {
   }
 
   // Default context-relevant merchant suggestions
-  return ['Show active offers', 'Compare to peers', 'Badhao calls'];
+  return ['Show active offers', 'Compare to peers', 'Boost profile calls'];
 }
 
 /**
@@ -298,12 +310,7 @@ function deriveSuggestedReplies(body, cta, merchant, customer, from_role) {
 function buildAutoReplyProbe(merchantId) {
   const merchant = store.getContext('merchant', merchantId);
   const name = merchant?.identity?.owner_first_name || merchant?.identity?.name || 'there';
-  const hasHindi = merchant?.identity?.languages?.includes('hi');
-
-  if (hasHindi) {
-    return `Samajh gayi — kya aap directly baat kar rahe hain ya yeh auto-reply hai? Agar aap available hain toh 2 minute mein bata sakti hoon aapke Google profile mein kya improve ho sakta hai.`;
-  }
-  return `Got it — are you available to chat directly, or is this an auto-reply? If you have 2 minutes, I can show you exactly what's happening on your Google profile.`;
+  return `Understood — are you available to chat directly, or is this an automated reply? If you have 2 minutes, I can show you exactly what is happening on your Google profile and active offers.`;
 }
 
 function clearConversationState() {

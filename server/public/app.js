@@ -23,19 +23,19 @@
         { id: 'o_meera_002', title: 'Deep Cleaning @ ₹499', status: 'expired', ended: '2026-02-28' },
       ],
       tone: 'peer_clinical',
-      welcome: "Namaste Dr. Meera! Main Vera hoon, magicpin se aapki dedicated merchant assistant. Main aapke Google Business Profile, active offers, aur patient recalls ko monitor kar rahi hoon. Main aaj aapki kya help kar sakti hoon?",
-      initialChips: ['Show active offers', 'Badhao calls', 'Compare to peers']
+      welcome: "Hello Dr. Meera! I am Vera, your dedicated magicpin assistant. I am actively monitoring your Google Business Profile, active offers, and patient recall schedule. How can I assist your clinic today?",
+      initialChips: ['Show active offers', 'Boost profile calls', 'Compare to peers']
     },
     {
       merchant_id: 'm_002_bharat_dentist_mumbai',
       category_slug: 'dentists',
       category_name: 'Dentist',
       icon: '🩺',
-      identity: { name: 'Bharat Dental Care', city: 'Mumbai', locality: 'Andheri West', owner_first_name: 'Bharat', languages: ['en', 'hi', 'mr'] },
+      identity: { name: 'Bharat Dental Care', city: 'Mumbai', locality: 'Andheri West', owner_first_name: 'Bharat', languages: ['en'] },
       performance: { views: 980, calls: 4, ctr: 0.018 },
       offers: [],
       tone: 'peer_clinical',
-      welcome: "Namaste Dr. Bharat! Vera here from magicpin. Noticed your views and inquiries had a slight dip recently. Would you like to review your profile and patient recall list?",
+      welcome: "Hello Dr. Bharat! Vera here from magicpin. Noticed your views and inquiries had a slight dip recently. Would you like to review your profile and patient recall list?",
       initialChips: ['Fix perf dip', 'Patient recalls', 'Launch new offer']
     },
     {
@@ -43,7 +43,7 @@
       category_slug: 'salons',
       category_name: 'Salon',
       icon: '💇',
-      identity: { name: 'Studio11 Family Salon', city: 'Hyderabad', locality: 'Gachibowli', owner_first_name: 'Lakshmi', languages: ['en', 'hi', 'te'] },
+      identity: { name: 'Studio11 Family Salon', city: 'Hyderabad', locality: 'Gachibowli', owner_first_name: 'Lakshmi', languages: ['en'] },
       performance: { views: 4980, calls: 62, ctr: 0.048 },
       offers: [
         { id: 'o_studio11_001', title: 'Haircut @ ₹99', status: 'active', started: '2026-03-01' },
@@ -58,7 +58,7 @@
       category_slug: 'salons',
       category_name: 'Salon',
       icon: '💇',
-      identity: { name: 'Glamour Lounge Spa & Salon', city: 'Pune', locality: 'Koregaon Park', owner_first_name: 'Ritu', languages: ['en', 'hi', 'mr'] },
+      identity: { name: 'Glamour Lounge Spa & Salon', city: 'Pune', locality: 'Koregaon Park', owner_first_name: 'Ritu', languages: ['en'] },
       performance: { views: 3200, calls: 48, ctr: 0.041 },
       offers: [{ id: 'o_glam_001', title: 'Weekend Glow Facial @ ₹799', status: 'active' }],
       tone: 'warm_professional',
@@ -70,11 +70,11 @@
       category_slug: 'restaurants',
       category_name: 'Restaurant',
       icon: '🍕',
-      identity: { name: 'SK Pizza Junction', city: 'Delhi', locality: 'Connaught Place', owner_first_name: 'Sunil', languages: ['en', 'hi'] },
+      identity: { name: 'SK Pizza Junction', city: 'Delhi', locality: 'Connaught Place', owner_first_name: 'Sunil', languages: ['en'] },
       performance: { views: 5600, calls: 140, ctr: 0.052 },
       offers: [{ id: 'o_pizza_001', title: 'Flat 20% Off on Large Pizzas', status: 'active' }],
       tone: 'energetic_warm',
-      welcome: "Hey Sunil ji! Vera from magicpin. Match day is coming up and evening dine-in queries are up 35%. Want to run an IPL combo offer for match hours?",
+      welcome: "Hello Sunil! Vera from magicpin. Match day is coming up and evening dine-in queries are up 35%. Would you like to run an IPL combo offer for match hours?",
       initialChips: ['Launch IPL combo', 'Review negative ratings', 'Show active offers']
     },
     {
@@ -82,11 +82,11 @@
       category_slug: 'restaurants',
       category_name: 'Restaurant',
       icon: '🍕',
-      identity: { name: 'Mylari South Indian Cafe', city: 'Bangalore', locality: 'Koramangala', owner_first_name: 'Karthik', languages: ['en', 'kn'] },
+      identity: { name: 'Mylari South Indian Cafe', city: 'Bangalore', locality: 'Koramangala', owner_first_name: 'Karthik', languages: ['en'] },
       performance: { views: 4100, calls: 95, ctr: 0.046 },
       offers: [{ id: 'o_mylari_001', title: 'Filter Coffee + Benne Dosa @ ₹99', status: 'active' }],
       tone: 'energetic_warm',
-      welcome: "Namaskara Karthik! Vera from magicpin. Congratulations on crossing 4,000 profile views this month! How can we drive more breakfast orders today?",
+      welcome: "Hello Karthik! Vera from magicpin. Congratulations on crossing 4,000 profile views this month! How can we drive more breakfast orders today?",
       initialChips: ['Push breakfast combo', 'Compare to peers', 'Show customer visits']
     },
     {
@@ -94,7 +94,7 @@
       category_slug: 'gyms',
       category_name: 'Gym',
       icon: '🏋️',
-      identity: { name: 'PowerHouse Fitness', city: 'Bangalore', locality: 'Indiranagar', owner_first_name: 'Vikram', languages: ['en', 'kn'] },
+      identity: { name: 'PowerHouse Fitness', city: 'Bangalore', locality: 'Indiranagar', owner_first_name: 'Vikram', languages: ['en'] },
       performance: { views: 1840, calls: 29, ctr: 0.034 },
       offers: [{ id: 'o_gym_001', title: '1-Month Trial Pass @ ₹999', status: 'active' }],
       tone: 'energetic_coaching',
@@ -106,11 +106,11 @@
       category_slug: 'gyms',
       category_name: 'Gym',
       icon: '🏋️',
-      identity: { name: 'Zen Yoga Studio', city: 'Chennai', locality: 'Adyar', owner_first_name: 'Meenakshi', languages: ['en', 'ta'] },
+      identity: { name: 'Zen Yoga Studio', city: 'Chennai', locality: 'Adyar', owner_first_name: 'Meenakshi', languages: ['en'] },
       performance: { views: 1250, calls: 22, ctr: 0.031 },
       offers: [{ id: 'o_zen_001', title: 'Free Weekend Yoga Demo', status: 'active' }],
       tone: 'mindful_encouraging',
-      welcome: "Vanakkam Meenakshi! Vera from magicpin. Your morning wellness batch is almost full. Would you like to open a weekend slot for beginners?",
+      welcome: "Hello Meenakshi! Vera from magicpin. Your morning wellness batch is almost full. Would you like to open a weekend slot for beginners?",
       initialChips: ['Open weekend demo', 'Member attendance', 'Active offers']
     },
     {
@@ -118,11 +118,11 @@
       category_slug: 'pharmacies',
       category_name: 'Pharmacy',
       icon: '💊',
-      identity: { name: 'Apollo Health Plus Pharmacy', city: 'Jaipur', locality: 'Malviya Nagar', owner_first_name: 'Ramesh', languages: ['en', 'hi'] },
+      identity: { name: 'Apollo Health Plus Pharmacy', city: 'Jaipur', locality: 'Malviya Nagar', owner_first_name: 'Ramesh', languages: ['en'] },
       performance: { views: 3400, calls: 115, ctr: 0.064 },
       offers: [{ id: 'o_pharma_001', title: 'Free BP & Sugar Screening on Orders > ₹500', status: 'active' }],
       tone: 'accurate_informative',
-      welcome: "Namaste Ramesh ji! Vera here from magicpin. We are keeping track of chronic refills and seasonal health needs in Malviya Nagar. How can I assist today?",
+      welcome: "Hello Ramesh! Vera here from magicpin. We are keeping track of chronic refills and seasonal health needs in Malviya Nagar. How can I assist today?",
       initialChips: ['Chronic refill list', 'Delivery inquiries', 'Show active offers']
     },
     {
@@ -130,11 +130,11 @@
       category_slug: 'pharmacies',
       category_name: 'Pharmacy',
       icon: '💊',
-      identity: { name: 'Sunrise Medicos', city: 'Lucknow', locality: 'Hazratganj', owner_first_name: 'Alok', languages: ['en', 'hi'] },
+      identity: { name: 'Sunrise Medicos', city: 'Lucknow', locality: 'Hazratganj', owner_first_name: 'Alok', languages: ['en'] },
       performance: { views: 2890, calls: 78, ctr: 0.051 },
       offers: [],
       tone: 'accurate_informative',
-      welcome: "Namaste Alok ji! Vera here from magicpin. Your profile has high search volume for doorstep medicine delivery. Want to enable WhatsApp prescription ordering?",
+      welcome: "Hello Alok! Vera here from magicpin. Your profile has high search volume for doorstep medicine delivery. Would you like to enable WhatsApp prescription ordering?",
       initialChips: ['Enable WhatsApp orders', 'Local delivery promo', 'Peer comparison']
     }
   ];
@@ -170,7 +170,7 @@
       identity: { name: 'Sneha (Parent of Aanya)', age_band: 'child_under_12', language_pref: 'hi-en mix' },
       relationship: { visits_total: 1, last_service: 'Pediatric Checkup', lifetime_value: 199 },
       state: 'lapsed_hard',
-      welcome: "Namaste Sneha ji! Vera here from Dr. Meera's Dental Clinic. Following up on Aanya's pediatric dental checkup from earlier this year. We have special weekday slots after 3 PM if you'd like to bring her in.",
+      welcome: "Hello Sneha! Vera here from Dr. Meera's Dental Clinic. Following up on Aanya's pediatric dental checkup from earlier this year. We have special weekday slots after 3 PM if you would like to bring her in.",
       initialChips: ['Book after 3 PM', 'Is checkup necessary?', 'What are charges?']
     },
     {
@@ -389,8 +389,8 @@
                 ...m,
                 category_name: m.category_slug ? m.category_slug.charAt(0).toUpperCase() + m.category_slug.slice(1) : 'Merchant',
                 icon: getCategoryIcon(m.category_slug),
-                welcome: localMatch?.welcome || `Namaste! Main Vera hoon, magicpin se aapki assistant. Main aapki kya help kar sakti hoon?`,
-                initialChips: localMatch?.initialChips || ['Show active offers', 'Badhao calls', 'Compare to peers'],
+                welcome: localMatch?.welcome || `Hello! I am Vera, your dedicated magicpin assistant. How can I assist your business today?`,
+                initialChips: localMatch?.initialChips || ['Show active offers', 'Boost profile calls', 'Compare to peers'],
               };
             });
             renderPickerList();
@@ -581,7 +581,7 @@
         conversationId: `conv_${personaKey}_${Date.now().toString(36)}`,
         turnNumber: 1,
         turnsHtml: '',
-        chips: persona.initialChips || (role === 'customer' ? ['Book appointment', 'Check price', 'Timings'] : ['Show offers', 'Badhao calls', 'Peer stats']),
+        chips: persona.initialChips || (role === 'customer' ? ['Book appointment', 'Check price', 'Timings'] : ['Show offers', 'Boost profile calls', 'Peer stats']),
       };
     }
 
@@ -661,7 +661,7 @@
     if (!replies || !Array.isArray(replies) || replies.length === 0) {
       replies = state.activeRole === 'customer'
         ? ['Book appointment', 'Check pricing', 'Need more details']
-        : ['Show active offers', 'Compare to peers', 'Badhao calls'];
+        : ['Show active offers', 'Compare to peers', 'Boost profile calls'];
     }
 
     // Save in session
@@ -695,7 +695,7 @@
     }
 
     // Merchant role
-    if (cta === 'binary_yes_stop' || cta === 'binary_confirm_cancel' || text.includes('kya main') || text.includes('should i') || text.includes('bhej dun') || text.includes('reply confirm') || text.includes('kar doon')) {
+    if (cta === 'binary_yes_stop' || cta === 'binary_confirm_cancel' || text.includes('should i') || text.includes('confirm') || text.includes('publish') || text.includes('ready to launch')) {
       return ['Yes, go live', 'Not right now', 'Edit draft first'];
     }
     if (text.includes('views') || text.includes('calls') || text.includes('ctr') || text.includes('peer') || text.includes('competitor') || text.includes('ranking')) {
@@ -711,7 +711,7 @@
       return ['Send WhatsApp recall', 'View patient list', 'Remind next week'];
     }
 
-    return ['Show active offers', 'Compare to peers', 'Badhao calls'];
+    return ['Show active offers', 'Compare to peers', 'Boost profile calls'];
   }
 
   // ─── Render Message in Chat ───
