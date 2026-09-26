@@ -1116,3 +1116,415 @@ textarea#messageInput {
     height: 50vh;
   }
 }
+
+/* =============================================================================
+   PERSONA SELECTION SCREEN
+   ============================================================================= */
+.hidden {
+  display: none !important;
+}
+
+.persona-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--bg-app);
+  overflow-y: auto;
+  position: relative;
+  z-index: 10;
+  animation: fadeIn 0.3s ease;
+}
+
+.persona-wrapper {
+  max-width: 1120px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px 24px 60px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Persona Top Bar */
+.persona-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.persona-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Persona Hero */
+.persona-hero {
+  text-align: center;
+  padding: 12px 0 6px 0;
+}
+
+.persona-hero-title {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #FFFFFF 30%, #94A3B8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+}
+
+.persona-hero-subtitle {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  max-width: 580px;
+  margin: 0 auto;
+}
+
+/* Role Switcher Tabs */
+.role-tabs-container {
+  display: flex;
+  justify-content: center;
+}
+
+.role-tabs {
+  display: inline-flex;
+  background: rgba(27, 34, 50, 0.7);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  padding: 4px;
+  gap: 4px;
+}
+
+.role-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.role-tab:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.role-tab.active {
+  background: linear-gradient(135deg, rgba(0, 168, 132, 0.25), rgba(0, 92, 75, 0.4));
+  color: #00E5B3;
+  border: 1px solid rgba(0, 168, 132, 0.4);
+  box-shadow: 0 4px 12px var(--color-brand-wa-glow);
+}
+
+.role-tab-badge,
+.tab-count {
+  font-size: 0.7rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+.role-tab.active .tab-count {
+  background: rgba(0, 168, 132, 0.3);
+  color: #FFFFFF;
+}
+
+/* Search and Filter Controls */
+.persona-filter-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.persona-search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  transition: border-color 0.2s ease;
+}
+
+.persona-search-box:focus-within {
+  border-color: var(--color-brand-wa);
+  box-shadow: 0 0 12px var(--color-brand-wa-glow);
+}
+
+.persona-search-box input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.92rem;
+}
+
+.persona-search-box input::placeholder {
+  color: var(--text-muted);
+}
+
+.btn-clear-search {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 2px 6px;
+}
+.btn-clear-search:hover {
+  color: var(--text-primary);
+}
+
+/* Category Filter Pills */
+.persona-category-pills {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.persona-category-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.cat-pill {
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.cat-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.cat-pill.active {
+  background: rgba(0, 168, 132, 0.15);
+  border-color: var(--color-brand-wa);
+  color: var(--color-brand-wa);
+}
+
+/* Persona Cards Grid */
+.persona-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 16px;
+}
+
+/* Individual Persona Card */
+.persona-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.persona-card:hover {
+  background: var(--bg-card-hover);
+  border-color: rgba(0, 168, 132, 0.5);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px -6px rgba(0, 0, 0, 0.45), 0 0 16px var(--color-brand-wa-glow);
+}
+
+.card-top-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.card-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.card-header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.card-persona-name {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-persona-sub {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.card-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.stat-chip {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.stat-chip-val {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.stat-chip-lbl {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+}
+
+.card-offer-tag {
+  font-size: 0.72rem;
+  color: #38BDF8;
+  background: rgba(56, 189, 248, 0.1);
+  padding: 4px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.card-tone-badge {
+  font-size: 0.68rem;
+  font-family: var(--font-family-mono);
+  color: var(--text-muted);
+}
+
+.card-action-btn {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--color-brand-wa);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.persona-card:hover .card-action-btn {
+  color: #00E5B3;
+  transform: translateX(2px);
+}
+
+/* Chat Header Back/Switch Button */
+.btn-switch-persona {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-pill);
+  padding: 4px 10px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-right: 4px;
+}
+
+.btn-switch-persona:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateX(-1px);
+}
+
+.back-arrow {
+  font-size: 0.85rem;
+}
+
+.active-persona-title {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+/* Dynamic Chips Animation */
+@keyframes chipSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.quick-suggestions .chip {
+  animation: chipSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.quick-suggestions .chip:nth-child(1) { animation-delay: 0.02s; }
+.quick-suggestions .chip:nth-child(2) { animation-delay: 0.06s; }
+.quick-suggestions .chip:nth-child(3) { animation-delay: 0.10s; }
+.quick-suggestions .chip:nth-child(4) { animation-delay: 0.14s; }

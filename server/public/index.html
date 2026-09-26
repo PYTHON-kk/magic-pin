@@ -124,12 +124,90 @@
       </div>
     </aside>
 
+    <!-- =========================================================================
+         PERSONA SELECTION SCREEN (Entry Flow)
+         ========================================================================= -->
+    <div class="persona-screen" id="personaScreen">
+      <div class="persona-wrapper">
+        
+        <!-- Top Bar -->
+        <div class="persona-top-bar">
+          <div class="persona-brand">
+            <div class="brand-logo">
+              <span class="logo-icon">🪄</span>
+            </div>
+            <div class="brand-text">
+              <h2>Vera AI</h2>
+              <span class="badge-magicpin">magicpin</span>
+            </div>
+          </div>
+          <div class="persona-top-actions">
+            <button id="btnPersonaDevMode" class="btn-dev-toggle" title="Toggle Developer / Judge Diagnostic View">
+              <span class="dev-toggle-icon">🛠️</span>
+              <span class="dev-toggle-text">Dev Mode</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Hero Title -->
+        <div class="persona-hero">
+          <h1 class="persona-hero-title">Who are you chatting as?</h1>
+          <p class="persona-hero-subtitle">Select a local merchant partner or customer to start a simulated WhatsApp session with Vera AI.</p>
+        </div>
+
+        <!-- Role Tabs: Merchant vs Customer -->
+        <div class="role-tabs-container">
+          <div class="role-tabs">
+            <button class="role-tab active" id="tabMerchant" data-role="merchant">
+              <span class="tab-icon">🏢</span>
+              <span class="tab-text">Local Merchants</span>
+              <span class="tab-count" id="countMerchants">10</span>
+            </button>
+            <button class="role-tab" id="tabCustomer" data-role="customer">
+              <span class="tab-icon">👤</span>
+              <span class="tab-text">Customers & Patients</span>
+              <span class="tab-count" id="countCustomers">15</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Search & Filter Controls -->
+        <div class="persona-filter-controls">
+          <div class="persona-search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="personaSearchInput" placeholder="Search by name, category, or city..." autocomplete="off" />
+            <button id="btnClearSearch" class="btn-clear-search" style="display: none;">✕</button>
+          </div>
+          
+          <div class="persona-category-pills" id="categoryPills">
+            <button class="cat-pill active" data-cat="all">All</button>
+            <button class="cat-pill" data-cat="dentists">🩺 Dentists</button>
+            <button class="cat-pill" data-cat="salons">💇 Salons</button>
+            <button class="cat-pill" data-cat="gyms">🏋️ Gyms</button>
+            <button class="cat-pill" data-cat="clinics">🌿 Clinics</button>
+            <button class="cat-pill" data-cat="pharmacies">💊 Pharmacies</button>
+            <button class="cat-pill" data-cat="restaurants">🍕 Restaurants</button>
+          </div>
+        </div>
+
+        <!-- Scrollable Persona Cards Grid -->
+        <div class="persona-cards-grid" id="personaCardsGrid">
+          <!-- Populated dynamically by app.js -->
+        </div>
+
+      </div>
+    </div>
+
     <!-- MAIN CHAT CONTAINER (WhatsApp Web Simulation) -->
-    <main class="chat-viewport">
+    <main class="chat-viewport hidden" id="chatViewport">
       
       <!-- WhatsApp Chat Header -->
       <header class="chat-header">
         <div class="chat-header-user">
+          <button id="btnSwitchPersona" class="btn-switch-persona" title="Switch Persona">
+            <span class="back-arrow">←</span>
+            <span>Switch</span>
+          </button>
           <div class="avatar-wrapper">
             <div class="avatar vera-avatar">V</div>
             <span class="online-indicator"></span>
@@ -146,15 +224,7 @@
             </div>
             <div class="user-subtext" id="userSubtext">
               <span class="subtext-prefix">Talking as</span>
-              <div class="merchant-dropdown-wrapper">
-                <select id="headerMerchantSelect" class="header-merchant-select" title="Switch Merchant Persona">
-                  <option value="m_001_drmeera_dentist_delhi" selected>Dr. Meera's Dental Clinic (Delhi)</option>
-                  <option value="m_003_studio11_salon_hyderabad">Studio11 Family Salon (Hyderabad)</option>
-                  <option value="m_005_powerhouse_gym_pune">Powerhouse Fitness Gym (Pune)</option>
-                  <option value="m_007_zen_ayurveda_bangalore">Zen Ayurveda Clinic (Bangalore)</option>
-                  <option value="m_009_sunrise_pharma_delhi">Sunrise Pharmacy (Delhi)</option>
-                </select>
-              </div>
+              <span class="active-persona-title" id="activePersonaTitle">Dr. Meera's Dental Clinic</span>
               <span class="status-separator">•</span>
               <span class="online-label">online</span>
             </div>

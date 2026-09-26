@@ -56,6 +56,13 @@ app.use((req, res, next) => {
 });
 
 /* ─── Routes ─── */
+app.get('/v1/personas', (_req, res) => {
+  const seedLoader = require('./data/seedLoader');
+  const merchants = seedLoader.getAllFallbackContexts('merchant').map((m) => m.payload);
+  const customers = seedLoader.getAllFallbackContexts('customer').map((c) => c.payload);
+  res.json({ merchants, customers });
+});
+
 app.get(['/chat', '/app', '/ui'], (_req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });

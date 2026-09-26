@@ -1,85 +1,273 @@
 /**
- * Vera AI — Interactive Merchant Chat Client
- * Connects directly to Vera API (/v1/reply, /v1/tick, /v1/context, /v1/healthz)
+ * Vera AI — Interactive Merchant & Customer Chat Client
+ * Features:
+ *   1. Persona Selection Entry Screen (Merchant vs Customer tabs, search & filters)
+ *   2. Clean WhatsApp Chat View with dynamic suggested reply chips per turn
+ *   3. Dev/Judge Diagnostic Mode toggleable at any time
  */
 
 (function () {
   'use strict';
 
+  // ─── Default Challenge Dataset Personas ───
+  const DEFAULT_MERCHANTS = [
+    {
+      merchant_id: 'm_001_drmeera_dentist_delhi',
+      category_slug: 'dentists',
+      category_name: 'Dentist',
+      icon: '🩺',
+      identity: { name: "Dr. Meera's Dental Clinic", city: 'Delhi', locality: 'Lajpat Nagar', owner_first_name: 'Meera', languages: ['en', 'hi'] },
+      performance: { views: 2410, calls: 18, ctr: 0.021 },
+      offers: [
+        { id: 'o_meera_001', title: 'Dental Cleaning @ ₹299', status: 'active', started: '2026-03-01' },
+        { id: 'o_meera_002', title: 'Deep Cleaning @ ₹499', status: 'expired', ended: '2026-02-28' },
+      ],
+      tone: 'peer_clinical',
+      welcome: "Namaste Dr. Meera! Main Vera hoon, magicpin se aapki dedicated merchant assistant. Main aapke Google Business Profile, active offers, aur patient recalls ko monitor kar rahi hoon. Main aaj aapki kya help kar sakti hoon?",
+      initialChips: ['Show active offers', 'Badhao calls', 'Compare to peers']
+    },
+    {
+      merchant_id: 'm_002_bharat_dentist_mumbai',
+      category_slug: 'dentists',
+      category_name: 'Dentist',
+      icon: '🩺',
+      identity: { name: 'Bharat Dental Care', city: 'Mumbai', locality: 'Andheri West', owner_first_name: 'Bharat', languages: ['en', 'hi', 'mr'] },
+      performance: { views: 980, calls: 4, ctr: 0.018 },
+      offers: [],
+      tone: 'peer_clinical',
+      welcome: "Namaste Dr. Bharat! Vera here from magicpin. Noticed your views and inquiries had a slight dip recently. Would you like to review your profile and patient recall list?",
+      initialChips: ['Fix perf dip', 'Patient recalls', 'Launch new offer']
+    },
+    {
+      merchant_id: 'm_003_studio11_salon_hyderabad',
+      category_slug: 'salons',
+      category_name: 'Salon',
+      icon: '💇',
+      identity: { name: 'Studio11 Family Salon', city: 'Hyderabad', locality: 'Gachibowli', owner_first_name: 'Lakshmi', languages: ['en', 'hi', 'te'] },
+      performance: { views: 4980, calls: 62, ctr: 0.048 },
+      offers: [
+        { id: 'o_studio11_001', title: 'Haircut @ ₹99', status: 'active', started: '2026-03-01' },
+        { id: 'o_studio11_002', title: 'Hair Spa @ ₹499', status: 'active', started: '2026-03-15' },
+      ],
+      tone: 'warm_professional',
+      welcome: "Hi Lakshmi! Vera here from magicpin. Your Studio11 profile is getting high interest for bridal styling and hair spa this week. How can I help you grow your bookings today?",
+      initialChips: ['Push bridal package', 'Active hair spa offer', 'Increase weekend bookings']
+    },
+    {
+      merchant_id: 'm_004_glamour_salon_pune',
+      category_slug: 'salons',
+      category_name: 'Salon',
+      icon: '💇',
+      identity: { name: 'Glamour Lounge Spa & Salon', city: 'Pune', locality: 'Koregaon Park', owner_first_name: 'Ritu', languages: ['en', 'hi', 'mr'] },
+      performance: { views: 3200, calls: 48, ctr: 0.041 },
+      offers: [{ id: 'o_glam_001', title: 'Weekend Glow Facial @ ₹799', status: 'active' }],
+      tone: 'warm_professional',
+      welcome: "Hello Ritu! Vera from magicpin. We are tracking weekend salon queries in Koregaon Park. Ready to push your weekend facial package to local customers?",
+      initialChips: ['Push facial offer', 'View reviews', 'Customer winback']
+    },
+    {
+      merchant_id: 'm_005_pizzajunction_restaurant_delhi',
+      category_slug: 'restaurants',
+      category_name: 'Restaurant',
+      icon: '🍕',
+      identity: { name: 'SK Pizza Junction', city: 'Delhi', locality: 'Connaught Place', owner_first_name: 'Sunil', languages: ['en', 'hi'] },
+      performance: { views: 5600, calls: 140, ctr: 0.052 },
+      offers: [{ id: 'o_pizza_001', title: 'Flat 20% Off on Large Pizzas', status: 'active' }],
+      tone: 'energetic_warm',
+      welcome: "Hey Sunil ji! Vera from magicpin. Match day is coming up and evening dine-in queries are up 35%. Want to run an IPL combo offer for match hours?",
+      initialChips: ['Launch IPL combo', 'Review negative ratings', 'Show active offers']
+    },
+    {
+      merchant_id: 'm_006_southindiancafe_restaurant_bangalore',
+      category_slug: 'restaurants',
+      category_name: 'Restaurant',
+      icon: '🍕',
+      identity: { name: 'Mylari South Indian Cafe', city: 'Bangalore', locality: 'Koramangala', owner_first_name: 'Karthik', languages: ['en', 'kn'] },
+      performance: { views: 4100, calls: 95, ctr: 0.046 },
+      offers: [{ id: 'o_mylari_001', title: 'Filter Coffee + Benne Dosa @ ₹99', status: 'active' }],
+      tone: 'energetic_warm',
+      welcome: "Namaskara Karthik! Vera from magicpin. Congratulations on crossing 4,000 profile views this month! How can we drive more breakfast orders today?",
+      initialChips: ['Push breakfast combo', 'Compare to peers', 'Show customer visits']
+    },
+    {
+      merchant_id: 'm_007_powerhouse_gym_bangalore',
+      category_slug: 'gyms',
+      category_name: 'Gym',
+      icon: '🏋️',
+      identity: { name: 'PowerHouse Fitness', city: 'Bangalore', locality: 'Indiranagar', owner_first_name: 'Vikram', languages: ['en', 'kn'] },
+      performance: { views: 1840, calls: 29, ctr: 0.034 },
+      offers: [{ id: 'o_gym_001', title: '1-Month Trial Pass @ ₹999', status: 'active' }],
+      tone: 'energetic_coaching',
+      welcome: "Hey Vikram! Vera from magicpin. Noticed seasonal gym registrations are picking up in Indiranagar. Ready to launch our 1-month trial push?",
+      initialChips: ['Launch trial pass', 'Show lapsed members', 'Compare gym stats']
+    },
+    {
+      merchant_id: 'm_008_zenyoga_gym_chennai',
+      category_slug: 'gyms',
+      category_name: 'Gym',
+      icon: '🏋️',
+      identity: { name: 'Zen Yoga Studio', city: 'Chennai', locality: 'Adyar', owner_first_name: 'Meenakshi', languages: ['en', 'ta'] },
+      performance: { views: 1250, calls: 22, ctr: 0.031 },
+      offers: [{ id: 'o_zen_001', title: 'Free Weekend Yoga Demo', status: 'active' }],
+      tone: 'mindful_encouraging',
+      welcome: "Vanakkam Meenakshi! Vera from magicpin. Your morning wellness batch is almost full. Would you like to open a weekend slot for beginners?",
+      initialChips: ['Open weekend demo', 'Member attendance', 'Active offers']
+    },
+    {
+      merchant_id: 'm_009_apollo_pharmacy_jaipur',
+      category_slug: 'pharmacies',
+      category_name: 'Pharmacy',
+      icon: '💊',
+      identity: { name: 'Apollo Health Plus Pharmacy', city: 'Jaipur', locality: 'Malviya Nagar', owner_first_name: 'Ramesh', languages: ['en', 'hi'] },
+      performance: { views: 3400, calls: 115, ctr: 0.064 },
+      offers: [{ id: 'o_pharma_001', title: 'Free BP & Sugar Screening on Orders > ₹500', status: 'active' }],
+      tone: 'accurate_informative',
+      welcome: "Namaste Ramesh ji! Vera here from magicpin. We are keeping track of chronic refills and seasonal health needs in Malviya Nagar. How can I assist today?",
+      initialChips: ['Chronic refill list', 'Delivery inquiries', 'Show active offers']
+    },
+    {
+      merchant_id: 'm_010_sunrisepharm_pharmacy_lucknow',
+      category_slug: 'pharmacies',
+      category_name: 'Pharmacy',
+      icon: '💊',
+      identity: { name: 'Sunrise Medicos', city: 'Lucknow', locality: 'Hazratganj', owner_first_name: 'Alok', languages: ['en', 'hi'] },
+      performance: { views: 2890, calls: 78, ctr: 0.051 },
+      offers: [],
+      tone: 'accurate_informative',
+      welcome: "Namaste Alok ji! Vera here from magicpin. Your profile has high search volume for doorstep medicine delivery. Want to enable WhatsApp prescription ordering?",
+      initialChips: ['Enable WhatsApp orders', 'Local delivery promo', 'Peer comparison']
+    }
+  ];
+
+  const DEFAULT_CUSTOMERS = [
+    {
+      customer_id: 'c_001_priya_for_m001',
+      merchant_id: 'm_001_drmeera_dentist_delhi',
+      merchant_name: "Dr. Meera's Dental Clinic",
+      category: 'Dentist',
+      identity: { name: 'Priya', age_band: '25-35', language_pref: 'hi-en mix' },
+      relationship: { visits_total: 4, last_service: 'Dental Cleaning', lifetime_value: 1696 },
+      state: 'lapsed_soft',
+      welcome: "Hi Priya! This is Vera from Dr. Meera's Dental Clinic. It's been 6 months since your last cleaning, and your routine recall is due. Would you like me to book a convenient evening slot for you this week?",
+      initialChips: ['Book evening slot', 'Check cleaning price', 'Not this week']
+    },
+    {
+      customer_id: 'c_002_rohit_for_m001',
+      merchant_id: 'm_001_drmeera_dentist_delhi',
+      merchant_name: "Dr. Meera's Dental Clinic",
+      category: 'Dentist',
+      identity: { name: 'Rohit', age_band: '35-45', language_pref: 'english' },
+      relationship: { visits_total: 2, last_service: 'Root Canal Consult', lifetime_value: 5500 },
+      state: 'active',
+      welcome: "Hi Rohit, Vera from Dr. Meera's Dental Clinic following up on your second root canal session. How is the tooth feeling today? Let me know if you need to adjust your Saturday appointment.",
+      initialChips: ['Feeling much better', 'Reschedule appointment', 'Ask Dr. Meera a question']
+    },
+    {
+      customer_id: 'c_003_aanya_for_m001',
+      merchant_id: 'm_001_drmeera_dentist_delhi',
+      merchant_name: "Dr. Meera's Dental Clinic",
+      category: 'Dentist',
+      identity: { name: 'Sneha (Parent of Aanya)', age_band: 'child_under_12', language_pref: 'hi-en mix' },
+      relationship: { visits_total: 1, last_service: 'Pediatric Checkup', lifetime_value: 199 },
+      state: 'lapsed_hard',
+      welcome: "Namaste Sneha ji! Vera here from Dr. Meera's Dental Clinic. Following up on Aanya's pediatric dental checkup from earlier this year. We have special weekday slots after 3 PM if you'd like to bring her in.",
+      initialChips: ['Book after 3 PM', 'Is checkup necessary?', 'What are charges?']
+    },
+    {
+      customer_id: 'c_004_sneha_for_m003',
+      merchant_id: 'm_003_studio11_salon_hyderabad',
+      merchant_name: 'Studio11 Family Salon',
+      category: 'Salon',
+      identity: { name: 'Sneha', age_band: '25-35', language_pref: 'te-en mix' },
+      relationship: { visits_total: 11, last_service: 'Balayage & Hair Spa', lifetime_value: 18450 },
+      state: 'active',
+      welcome: "Hi Sneha! Vera from Studio11 Salon. Stylist Priya has Saturday afternoon slots open for balayage touchup and hair spa. Would you like to reserve your favorite slot?",
+      initialChips: ['Book with Priya', 'What are spa packages?', 'Not this Saturday']
+    },
+    {
+      customer_id: 'c_005_kavya_for_m003',
+      merchant_id: 'm_003_studio11_salon_hyderabad',
+      merchant_name: 'Studio11 Family Salon',
+      category: 'Salon',
+      identity: { name: 'Kavya', age_band: '20-30', language_pref: 'en' },
+      relationship: { visits_total: 3, last_service: 'Bridal Trial', lifetime_value: 6500 },
+      state: 'active',
+      welcome: "Hi Kavya! Vera here from Studio11. Hope you loved your bridal makeup trial! We are holding our bridal package booking for the upcoming wedding season. Can I confirm your dates?",
+      initialChips: ['Confirm bridal booking', 'Check package price', 'Need to consult family']
+    },
+    {
+      customer_id: 'c_006_ananya_for_m004',
+      merchant_id: 'm_004_glamour_salon_pune',
+      merchant_name: 'Glamour Lounge Spa & Salon',
+      category: 'Salon',
+      identity: { name: 'Ananya', age_band: '25-35', language_pref: 'en-mr mix' },
+      relationship: { visits_total: 5, last_service: 'Aromatherapy Massage', lifetime_value: 4200 },
+      state: 'lapsed_soft',
+      welcome: "Hello Ananya! Vera from Glamour Lounge Spa in Koregaon Park. It's been a while since your last relaxing massage. We have an exclusive 20% weekday wellness pass available for you!",
+      initialChips: ['Claim 20% pass', 'Check weekend slots', 'Send menu details']
+    },
+    {
+      customer_id: 'c_007_rahul_for_m005',
+      merchant_id: 'm_005_pizzajunction_restaurant_delhi',
+      merchant_name: 'SK Pizza Junction',
+      category: 'Restaurant',
+      identity: { name: 'Rahul', age_band: '20-28', language_pref: 'hi-en mix' },
+      relationship: { visits_total: 8, last_service: 'Dine-in Pizza Combo', lifetime_value: 3900 },
+      state: 'active',
+      welcome: "Hey Rahul! Vera from SK Pizza Junction CP. Match night special: Flat 20% off on all large gourmet pizzas today! Reserve a table or order ahead for takeaway?",
+      initialChips: ['Reserve a table', 'Order takeaway', 'See today menu']
+    },
+    {
+      customer_id: 'c_008_varun_for_m007',
+      merchant_id: 'm_007_powerhouse_gym_bangalore',
+      merchant_name: 'PowerHouse Fitness',
+      category: 'Gym',
+      identity: { name: 'Varun', age_band: '22-32', language_pref: 'english' },
+      relationship: { visits_total: 1, last_service: 'Trial Session', lifetime_value: 0 },
+      state: 'lapsed_soft',
+      welcome: "Hey Varun! Vera from PowerHouse Fitness Indiranagar. Hope you had a great workout trial with coach Vikram! We're offering a special 3-month membership deal this week if you'd like to join.",
+      initialChips: ['Check 3-month fee', 'Book personal trainer', 'Maybe next month']
+    }
+  ];
+
   // ─── State ───
   const state = {
     backendUrl: window.location.origin.includes('http') ? window.location.origin : 'https://vera-bot-r8yd.onrender.com',
-    conversationId: `conv_${Date.now().toString(36)}`,
-    turnNumber: 1,
     soundEnabled: true,
     devMode: localStorage.getItem('vera_dev_mode') === 'true',
-    activeMerchant: 'm_001_drmeera_dentist_delhi',
-    merchants: {
-      'm_001_drmeera_dentist_delhi': {
-        name: "Dr. Meera's Dental Clinic",
-        category: 'dentists',
-        locality: 'Lajpat Nagar, Delhi',
-        tone: 'peer_clinical',
-        views: '1,420',
-        calls: '38',
-        ctr: '4.2%',
-        languages: ['hi', 'en'],
-        welcome: "Namaste Dr. Meera! Main Vera hoon, magicpin se aapki dedicated merchant assistant. Main aapke Google Business Profile, active offers, aur patient recalls ko monitor kar rahi hoon. Main aaj aapki kya help kar sakti hoon?",
-      },
-      'm_003_studio11_salon_hyderabad': {
-        name: 'Studio11 Family Salon',
-        category: 'salons',
-        locality: 'Gachibowli, Hyderabad',
-        tone: 'warm_professional',
-        views: '2,890',
-        calls: '92',
-        ctr: '5.8%',
-        languages: ['en', 'hi'],
-        welcome: "Hi Lakshmi! Vera here from magicpin. Your Studio11 profile is getting high interest for bridal styling and hair spa this week. How can I help you grow your bookings today?",
-      },
-      'm_005_powerhouse_gym_pune': {
-        name: 'Powerhouse Fitness Gym',
-        category: 'gyms',
-        locality: 'Kothrud, Pune',
-        tone: 'energetic_coaching',
-        views: '940',
-        calls: '19',
-        ctr: '3.1%',
-        languages: ['en', 'mr'],
-        welcome: "Hey Vikram! Vera from magicpin. Noticed your trial inquiries dipped slightly this month compared to Deccan gyms. Ready to launch our seasonal pass push?",
-      },
-      'm_007_zen_ayurveda_bangalore': {
-        name: 'Zen Ayurveda Clinic',
-        category: 'clinics',
-        locality: 'Indiranagar, Bangalore',
-        tone: 'peer_clinical',
-        views: '1,120',
-        calls: '44',
-        ctr: '4.9%',
-        languages: ['en', 'kn'],
-        welcome: "Greetings Dr. Ananya! Vera here. Your panchakarma wellness package has been trending in East Bangalore. How can I assist your consultation flow today?",
-      },
-      'm_009_sunrise_pharma_delhi': {
-        name: 'Sunrise Pharmacy',
-        category: 'pharmacies',
-        locality: 'Rohini, Delhi',
-        tone: 'accurate_informative',
-        views: '3,400',
-        calls: '115',
-        ctr: '6.4%',
-        languages: ['hi', 'en'],
-        welcome: "Namaste Ramesh ji! Vera here from magicpin. We are keeping track of your chronic refills and local medicine delivery requests. What can I do for you today?",
-      },
-    },
+    activeRoleTab: 'merchant', // 'merchant' | 'customer'
+    activeCategoryFilter: 'all',
+    searchQuery: '',
+    merchantsList: DEFAULT_MERCHANTS,
+    customersList: DEFAULT_CUSTOMERS,
+    activePersona: null,
+    activeRole: 'merchant', // 'merchant' | 'customer'
+    activeMerchantId: 'm_001_drmeera_dentist_delhi',
+    activeCustomerId: null,
+    conversationId: `conv_${Date.now().toString(36)}`,
+    turnNumber: 1,
+    conversations: {}, // Key: personaKey -> { turns: [], turnNumber, welcomeDone }
   };
 
   // ─── DOM Elements ───
   const el = {
     appContainer: document.querySelector('.app-container'),
     sidebar: document.getElementById('sidebar'),
+    personaScreen: document.getElementById('personaScreen'),
+    chatViewport: document.getElementById('chatViewport'),
+    btnSwitchPersona: document.getElementById('btnSwitchPersona'),
+    activePersonaTitle: document.getElementById('activePersonaTitle'),
     btnDevMode: document.getElementById('btnDevMode'),
+    btnPersonaDevMode: document.getElementById('btnPersonaDevMode'),
     btnCloseDevSidebar: document.getElementById('btnCloseDevSidebar'),
-    headerMerchantSelect: document.getElementById('headerMerchantSelect'),
+    tabMerchant: document.getElementById('tabMerchant'),
+    tabCustomer: document.getElementById('tabCustomer'),
+    countMerchants: document.getElementById('countMerchants'),
+    countCustomers: document.getElementById('countCustomers'),
+    personaSearchInput: document.getElementById('personaSearchInput'),
+    btnClearSearch: document.getElementById('btnClearSearch'),
+    categoryPills: document.getElementById('categoryPills'),
+    personaCardsGrid: document.getElementById('personaCardsGrid'),
     backendUrl: document.getElementById('backendUrl'),
     btnConnect: document.getElementById('btnConnect'),
     connectionStatus: document.getElementById('connectionStatus'),
@@ -117,13 +305,15 @@
     if (state.devMode) {
       el.appContainer.classList.add('dev-mode-active');
       if (el.btnDevMode) el.btnDevMode.classList.add('active');
+      if (el.btnPersonaDevMode) el.btnPersonaDevMode.classList.add('active');
     } else {
       el.appContainer.classList.remove('dev-mode-active');
       if (el.btnDevMode) el.btnDevMode.classList.remove('active');
+      if (el.btnPersonaDevMode) el.btnPersonaDevMode.classList.remove('active');
     }
   }
 
-  // ─── Audio Synthesis (Subtle Web Audio feedback) ───
+  // ─── Audio Synthesis ───
   const audioCtx = window.AudioContext ? new (window.AudioContext || window.webkitAudioContext)() : null;
 
   function playSound(type) {
@@ -184,11 +374,28 @@
         el.connectionStatus.querySelector('.status-label').textContent = 'Online';
         el.latencyDisplay.textContent = `Latency: ${latency} ms`;
 
-        // Also fetch metadata
         try {
           const meta = await api('/v1/metadata');
           if (meta.data?.model) {
             el.modelDisplay.textContent = `Model: ${meta.data.model}`;
+          }
+        } catch (_) {}
+
+        // Fetch dynamic personas if backend provides them
+        try {
+          const p = await api('/v1/personas');
+          if (p.data?.merchants && p.data.merchants.length > 0) {
+            state.merchantsList = p.data.merchants.map((m) => {
+              const localMatch = DEFAULT_MERCHANTS.find((dm) => dm.merchant_id === m.merchant_id);
+              return {
+                ...m,
+                category_name: m.category_slug ? m.category_slug.charAt(0).toUpperCase() + m.category_slug.slice(1) : 'Merchant',
+                icon: getCategoryIcon(m.category_slug),
+                welcome: localMatch?.welcome || `Namaste! Main Vera hoon, magicpin se aapki assistant. Main aapki kya help kar sakti hoon?`,
+                initialChips: localMatch?.initialChips || ['Show active offers', 'Badhao calls', 'Compare to peers'],
+              };
+            });
+            renderPersonaGrid();
           }
         } catch (_) {}
       } else {
@@ -201,9 +408,400 @@
     }
   }
 
-  // ─── Time Formatter ───
+  function getCategoryIcon(slug) {
+    const icons = {
+      dentists: '🩺',
+      salons: '💇',
+      gyms: '🏋️',
+      clinics: '🌿',
+      pharmacies: '💊',
+      restaurants: '🍕',
+    };
+    return icons[slug] || '🏪';
+  }
+
   function formatTime(date = new Date()) {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // ─── Persona Screen Management ───
+  function initPersonaScreen() {
+    // Role Tab Switching
+    el.tabMerchant.addEventListener('click', () => {
+      state.activeRoleTab = 'merchant';
+      el.tabMerchant.classList.add('active');
+      el.tabCustomer.classList.remove('active');
+      updateCategoryPillsForRole('merchant');
+      renderPersonaGrid();
+    });
+
+    el.tabCustomer.addEventListener('click', () => {
+      state.activeRoleTab = 'customer';
+      el.tabCustomer.classList.add('active');
+      el.tabMerchant.classList.remove('active');
+      updateCategoryPillsForRole('customer');
+      renderPersonaGrid();
+    });
+
+    // Search input
+    el.personaSearchInput.addEventListener('input', (e) => {
+      state.searchQuery = e.target.value.trim().toLowerCase();
+      el.btnClearSearch.style.display = state.searchQuery ? 'block' : 'none';
+      renderPersonaGrid();
+    });
+
+    el.btnClearSearch.addEventListener('click', () => {
+      state.searchQuery = '';
+      el.personaSearchInput.value = '';
+      el.btnClearSearch.style.display = 'none';
+      renderPersonaGrid();
+    });
+
+    // Category filter pills
+    el.categoryPills.addEventListener('click', (e) => {
+      const pill = e.target.closest('.cat-pill');
+      if (pill) {
+        el.categoryPills.querySelectorAll('.cat-pill').forEach((p) => p.classList.remove('active'));
+        pill.classList.add('active');
+        state.activeCategoryFilter = pill.getAttribute('data-cat');
+        renderPersonaGrid();
+      }
+    });
+
+    // Switch button in chat header
+    el.btnSwitchPersona.addEventListener('click', openPersonaScreen);
+
+    // Initial render
+    renderPersonaGrid();
+  }
+
+  function updateCategoryPillsForRole(role) {
+    if (role === 'merchant') {
+      el.categoryPills.innerHTML = `
+        <button class="cat-pill active" data-cat="all">All</button>
+        <button class="cat-pill" data-cat="dentists">🩺 Dentists</button>
+        <button class="cat-pill" data-cat="salons">💇 Salons</button>
+        <button class="cat-pill" data-cat="gyms">🏋️ Gyms</button>
+        <button class="cat-pill" data-cat="clinics">🌿 Clinics</button>
+        <button class="cat-pill" data-cat="pharmacies">💊 Pharmacies</button>
+        <button class="cat-pill" data-cat="restaurants">🍕 Restaurants</button>
+      `;
+    } else {
+      el.categoryPills.innerHTML = `
+        <button class="cat-pill active" data-cat="all">All</button>
+        <button class="cat-pill" data-cat="active">✅ Active</button>
+        <button class="cat-pill" data-cat="lapsed">⏳ Lapsed Recall</button>
+        <button class="cat-pill" data-cat="dentist">🩺 Dental Patients</button>
+        <button class="cat-pill" data-cat="salon">💇 Salon Clients</button>
+      `;
+    }
+    state.activeCategoryFilter = 'all';
+  }
+
+  function renderPersonaGrid() {
+    el.countMerchants.textContent = state.merchantsList.length;
+    el.countCustomers.textContent = state.customersList.length;
+    el.personaCardsGrid.innerHTML = '';
+
+    const q = state.searchQuery;
+    const cat = state.activeCategoryFilter;
+
+    if (state.activeRoleTab === 'merchant') {
+      const filtered = state.merchantsList.filter((m) => {
+        const name = (m.identity?.name || '').toLowerCase();
+        const city = (m.identity?.city || '').toLowerCase();
+        const locality = (m.identity?.locality || '').toLowerCase();
+        const slug = (m.category_slug || '').toLowerCase();
+
+        const matchesQuery = !q || name.includes(q) || city.includes(q) || locality.includes(q) || slug.includes(q);
+        const matchesCat = cat === 'all' || slug === cat;
+        return matchesQuery && matchesCat;
+      });
+
+      if (filtered.length === 0) {
+        el.personaCardsGrid.innerHTML = `<div class="drawer-empty" style="grid-column: 1/-1;">No matching merchants found.</div>`;
+        return;
+      }
+
+      filtered.forEach((m) => {
+        const card = document.createElement('div');
+        card.className = 'persona-card';
+        const activeOffers = (m.offers || []).filter((o) => o.status === 'active');
+
+        card.innerHTML = `
+          <div class="card-top-row">
+            <div class="card-avatar">${m.icon || getCategoryIcon(m.category_slug)}</div>
+            <div class="card-header-info">
+              <div class="card-name-row">
+                <span class="card-persona-name">${m.identity?.name || 'Local Merchant'}</span>
+                <span class="verified-badge" title="Verified magicpin Partner">
+                  <svg viewBox="0 0 18 18" width="14" height="14" fill="#00A884">
+                    <path d="M9 0L10.8 2.2L13.6 1.8L14.4 4.5L17.1 5.6L16.6 8.4L18 10.8L15.8 12.6L16.2 15.4L13.5 16.2L12.4 18.9L9.6 18.4L7.2 19.8L5.4 17.6L2.6 18L1.8 15.3L-0.9 14.2L-0.4 11.4L-1.8 9L0.4 7.2L0 4.4L2.7 3.6L3.8 0.9L6.6 1.4L9 0ZM12.7 6.3L7.8 11.2L5.3 8.7L4.2 9.8L7.8 13.3L13.8 7.4L12.7 6.3Z"/>
+                  </svg>
+                </span>
+              </div>
+              <div class="card-persona-sub">
+                <span>${m.category_name || m.category_slug}</span> • <span>${m.identity?.locality || ''}, ${m.identity?.city || ''}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-stats-row">
+            <div class="stat-chip">
+              <span class="stat-chip-val">${(m.performance?.views || 1420).toLocaleString()}</span>
+              <span class="stat-chip-lbl">Views</span>
+            </div>
+            <div class="stat-chip">
+              <span class="stat-chip-val">${m.performance?.calls || 38}</span>
+              <span class="stat-chip-lbl">Calls</span>
+            </div>
+            <div class="stat-chip">
+              <span class="stat-chip-val">${((m.performance?.ctr || 0.042) * 100).toFixed(1)}%</span>
+              <span class="stat-chip-lbl">CTR</span>
+            </div>
+          </div>
+
+          ${activeOffers.length > 0 ? `<div class="card-offer-tag">🏷️ ${activeOffers[0].title}</div>` : ''}
+
+          <div class="card-footer-row">
+            <span class="card-tone-badge">Tone: ${m.tone || 'peer_clinical'}</span>
+            <span class="card-action-btn">Chat as Merchant →</span>
+          </div>
+        `;
+
+        card.addEventListener('click', () => selectPersona(m, 'merchant'));
+        el.personaCardsGrid.appendChild(card);
+      });
+    } else {
+      // Customer view
+      const filtered = state.customersList.filter((c) => {
+        const name = (c.identity?.name || '').toLowerCase();
+        const mName = (c.merchant_name || '').toLowerCase();
+        const catName = (c.category || '').toLowerCase();
+        const status = (c.state || '').toLowerCase();
+
+        const matchesQuery = !q || name.includes(q) || mName.includes(q) || catName.includes(q);
+        let matchesCat = true;
+        if (cat === 'active') matchesCat = status === 'active';
+        if (cat === 'lapsed') matchesCat = status.includes('lapsed');
+        if (cat === 'dentist') matchesCat = catName.includes('dentist');
+        if (cat === 'salon') matchesCat = catName.includes('salon');
+
+        return matchesQuery && matchesCat;
+      });
+
+      if (filtered.length === 0) {
+        el.personaCardsGrid.innerHTML = `<div class="drawer-empty" style="grid-column: 1/-1;">No matching customers found.</div>`;
+        return;
+      }
+
+      filtered.forEach((c) => {
+        const card = document.createElement('div');
+        card.className = 'persona-card';
+        const initial = (c.identity?.name || 'C').charAt(0).toUpperCase();
+        const isLapsed = (c.state || '').includes('lapsed');
+
+        card.innerHTML = `
+          <div class="card-top-row">
+            <div class="card-avatar" style="background: rgba(56, 189, 248, 0.15); color: #38BDF8;">${initial}</div>
+            <div class="card-header-info">
+              <div class="card-name-row">
+                <span class="card-persona-name">${c.identity?.name}</span>
+                <span class="tag" style="background:${isLapsed ? 'rgba(255,183,3,0.15);color:#FFB703' : 'rgba(0,168,132,0.15);color:#00A884'}">
+                  ${c.state || 'active'}
+                </span>
+              </div>
+              <div class="card-persona-sub">
+                <span>Client of ${c.merchant_name}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-stats-row">
+            <div class="stat-chip">
+              <span class="stat-chip-val">${c.relationship?.visits_total || 1}</span>
+              <span class="stat-chip-lbl">Visits</span>
+            </div>
+            <div class="stat-chip">
+              <span class="stat-chip-val">₹${(c.relationship?.lifetime_value || 0).toLocaleString()}</span>
+              <span class="stat-chip-lbl">LTV</span>
+            </div>
+            <div class="stat-chip">
+              <span class="stat-chip-val">${c.identity?.language_pref || 'hi-en'}</span>
+              <span class="stat-chip-lbl">Language</span>
+            </div>
+          </div>
+
+          <div class="card-offer-tag" style="background: rgba(0, 168, 132, 0.1); color: var(--color-brand-wa);">
+            📌 Last service: ${c.relationship?.last_service || 'Consultation'}
+          </div>
+
+          <div class="card-footer-row">
+            <span class="card-tone-badge">Age: ${c.identity?.age_band || 'adult'}</span>
+            <span class="card-action-btn">Chat as ${c.identity?.name.split(' ')[0]} →</span>
+          </div>
+        `;
+
+        card.addEventListener('click', () => selectPersona(c, 'customer'));
+        el.personaCardsGrid.appendChild(card);
+      });
+    }
+  }
+
+  function selectPersona(persona, role) {
+    state.activeRole = role;
+    state.activePersona = persona;
+
+    if (role === 'merchant') {
+      state.activeMerchantId = persona.merchant_id;
+      state.activeCustomerId = null;
+      el.activePersonaTitle.textContent = persona.identity?.name || 'Local Merchant';
+      el.messageInput.placeholder = `Type a message as ${persona.identity?.name || 'Merchant'} (English or Hinglish)...`;
+    } else {
+      state.activeCustomerId = persona.customer_id;
+      state.activeMerchantId = persona.merchant_id;
+      el.activePersonaTitle.textContent = `${persona.identity?.name} (${persona.merchant_name})`;
+      el.messageInput.placeholder = `Type a message as ${persona.identity?.name} (Customer)...`;
+    }
+
+    // Set conversation key
+    const personaKey = role === 'merchant' ? persona.merchant_id : persona.customer_id;
+    if (!state.conversations[personaKey]) {
+      state.conversations[personaKey] = {
+        conversationId: `conv_${personaKey}_${Date.now().toString(36)}`,
+        turnNumber: 1,
+        turnsHtml: '',
+        chips: persona.initialChips || (role === 'customer' ? ['Book appointment', 'Check price', 'Timings'] : ['Show offers', 'Badhao calls', 'Peer stats']),
+      };
+    }
+
+    const session = state.conversations[personaKey];
+    state.conversationId = session.conversationId;
+    state.turnNumber = session.turnNumber;
+
+    // Transition view
+    el.personaScreen.classList.add('hidden');
+    el.chatViewport.classList.remove('hidden');
+
+    // Restore or initialize chat history
+    if (session.turnsHtml) {
+      el.messagesContainer.innerHTML = session.turnsHtml;
+    } else {
+      el.messagesContainer.innerHTML = `
+        <div class="system-message">
+          <span class="lock-icon">🔒</span>
+          <span>Messages are end-to-end encrypted with magicpin 4-Context Vera Engine.</span>
+        </div>
+      `;
+      appendMessage('vera', persona.welcome, { action: 'send', rationale: `Active persona loaded: ${role}` });
+      session.turnsHtml = el.messagesContainer.innerHTML;
+    }
+
+    // Update dynamic quick-reply chips
+    updateQuickReplies(session.chips);
+
+    // Sync Dev mode stats card
+    updateDevStats(persona, role);
+  }
+
+  function openPersonaScreen() {
+    // Save current turns before switching
+    const personaKey = state.activeRole === 'merchant' ? state.activeMerchantId : state.activeCustomerId;
+    if (personaKey && state.conversations[personaKey]) {
+      state.conversations[personaKey].turnsHtml = el.messagesContainer.innerHTML;
+      state.conversations[personaKey].turnNumber = state.turnNumber;
+    }
+
+    el.chatViewport.classList.add('hidden');
+    el.personaScreen.classList.remove('hidden');
+  }
+
+  function updateDevStats(p, role) {
+    if (role === 'merchant') {
+      if (el.currentMerchantName) el.currentMerchantName.textContent = p.identity?.name || '';
+      if (el.metricViews) el.metricViews.textContent = (p.performance?.views || 0).toLocaleString();
+      if (el.metricCalls) el.metricCalls.textContent = p.performance?.calls || 0;
+      if (el.metricCtr) el.metricCtr.textContent = `${((p.performance?.ctr || 0.04) * 100).toFixed(1)}%`;
+      if (el.merchantTags) {
+        el.merchantTags.innerHTML = `
+          <span class="tag">${p.tone || 'peer_clinical'}</span>
+          <span class="tag">${p.identity?.locality || ''}</span>
+          <span class="tag">${(p.identity?.languages || ['hi', 'en']).join(', ')}</span>
+        `;
+      }
+    } else {
+      if (el.currentMerchantName) el.currentMerchantName.textContent = p.merchant_name || '';
+      if (el.metricViews) el.metricViews.textContent = `LTV: ₹${p.relationship?.lifetime_value || 0}`;
+      if (el.metricCalls) el.metricCalls.textContent = `Visits: ${p.relationship?.visits_total || 1}`;
+      if (el.metricCtr) el.metricCtr.textContent = p.state || 'active';
+      if (el.merchantTags) {
+        el.merchantTags.innerHTML = `
+          <span class="tag">Customer: ${p.identity?.name}</span>
+          <span class="tag">${p.category || 'Client'}</span>
+          <span class="tag">${p.identity?.language_pref || 'hi-en'}</span>
+        `;
+      }
+    }
+  }
+
+  // ─── Dynamic Quick-Reply Chips ───
+  function updateQuickReplies(replies) {
+    if (!el.quickSuggestions) return;
+
+    if (!replies || !Array.isArray(replies) || replies.length === 0) {
+      replies = state.activeRole === 'customer'
+        ? ['Book appointment', 'Check pricing', 'Need more details']
+        : ['Show active offers', 'Compare to peers', 'Badhao calls'];
+    }
+
+    // Save in session
+    const personaKey = state.activeRole === 'merchant' ? state.activeMerchantId : state.activeCustomerId;
+    if (personaKey && state.conversations[personaKey]) {
+      state.conversations[personaKey].chips = replies;
+    }
+
+    el.quickSuggestions.innerHTML = '';
+    replies.forEach((text, idx) => {
+      const chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.textContent = text;
+      chip.setAttribute('data-msg', text);
+      chip.style.animationDelay = `${idx * 0.04}s`;
+      el.quickSuggestions.appendChild(chip);
+    });
+  }
+
+  function deriveSuggestedRepliesFrontend(body, cta) {
+    const text = (body || '').toLowerCase();
+
+    if (state.activeRole === 'customer') {
+      if (cta === 'binary_yes_stop' || cta === 'binary_confirm_cancel' || text.includes('confirm') || text.includes('book') || text.includes('slot')) {
+        return ['Book appointment', 'Check slot timings', 'Not this week'];
+      }
+      if (text.includes('offer') || text.includes('discount') || text.includes('package')) {
+        return ['Claim this offer', 'Tell me more', 'Not right now'];
+      }
+      return ['Book appointment', 'Check pricing', 'Need more details'];
+    }
+
+    // Merchant role
+    if (cta === 'binary_yes_stop' || cta === 'binary_confirm_cancel' || text.includes('kya main') || text.includes('should i') || text.includes('bhej dun') || text.includes('reply confirm') || text.includes('kar doon')) {
+      return ['Yes, go live', 'Not right now', 'Edit draft first'];
+    }
+    if (text.includes('views') || text.includes('calls') || text.includes('ctr') || text.includes('peer') || text.includes('competitor') || text.includes('ranking')) {
+      return ['Compare to peers', 'How to increase calls?', 'Show active offers'];
+    }
+    if (text.includes('offer') || text.includes('discount') || text.includes('cleaning') || text.includes('pricing') || text.includes('package')) {
+      return ['Launch new offer', 'Show active offers', 'Edit current pricing'];
+    }
+    if (text.includes('review') || text.includes('rating') || text.includes('feedback')) {
+      return ['See negative reviews', 'Reply to reviews', 'Improve my rating'];
+    }
+    if (text.includes('recall') || text.includes('lapsed') || text.includes('patient') || text.includes('client')) {
+      return ['Send WhatsApp recall', 'View patient list', 'Remind next week'];
+    }
+
+    return ['Show active offers', 'Compare to peers', 'Badhao calls'];
   }
 
   // ─── Render Message in Chat ───
@@ -310,16 +908,16 @@
     el.messageInput.value = '';
     el.messageInput.style.height = 'auto';
 
-    // Append merchant message
-    appendMessage('merchant', msg);
+    // Append user message
+    appendMessage(state.activeRole, msg);
     showTyping();
 
     try {
       const payload = {
         conversation_id: state.conversationId,
-        merchant_id: state.activeMerchant,
-        customer_id: null,
-        from_role: 'merchant',
+        merchant_id: state.activeMerchantId,
+        customer_id: state.activeCustomerId,
+        from_role: state.activeRole,
         message: msg,
         turn_number: state.turnNumber,
         received_at: new Date().toISOString(),
@@ -338,6 +936,10 @@
             rationale: data.rationale,
             latency,
           });
+
+          // Update dynamic chips from backend suggested_replies or fallback
+          const replies = data.suggested_replies || deriveSuggestedRepliesFrontend(data.body, data.cta);
+          updateQuickReplies(replies);
         } else if (data.action === 'wait') {
           // If the bot has nothing to send, in Clean Mode don't render a bubble at all.
           // In Dev Mode, render a developer event log so engineers see the suppression/cooldown rationale.
@@ -352,6 +954,7 @@
             rationale: data.rationale,
             latency,
           });
+          updateQuickReplies(['Start new query', 'Show active offers']);
         }
       } else {
         appendMessage('vera', 'Sorry, I encountered an issue reaching the server.', { action: 'error' });
@@ -360,46 +963,6 @@
       hideTyping();
       appendMessage('vera', `Connection Error: ${err.message}`, { action: 'error' });
     }
-  }
-
-  // ─── Switch Merchant Persona ───
-  function switchMerchant(merchantId) {
-    state.activeMerchant = merchantId;
-    const m = state.merchants[merchantId];
-    if (!m) return;
-
-    // Sync both persona selectors
-    if (el.merchantSelect && el.merchantSelect.value !== merchantId) {
-      el.merchantSelect.value = merchantId;
-    }
-    if (el.headerMerchantSelect && el.headerMerchantSelect.value !== merchantId) {
-      el.headerMerchantSelect.value = merchantId;
-    }
-
-    state.conversationId = `conv_${merchantId}_${Date.now().toString(36)}`;
-    state.turnNumber = 1;
-
-    if (el.currentMerchantName) el.currentMerchantName.textContent = m.name;
-    if (el.metricViews) el.metricViews.textContent = m.views;
-    if (el.metricCalls) el.metricCalls.textContent = m.calls;
-    if (el.metricCtr) el.metricCtr.textContent = m.ctr;
-
-    if (el.merchantTags) {
-      el.merchantTags.innerHTML = `
-        <span class="tag">${m.tone}</span>
-        <span class="tag">${m.locality}</span>
-        <span class="tag">${m.languages.join(', ')}</span>
-      `;
-    }
-
-    // Clear and show persona welcome message without technical badges
-    el.messagesContainer.innerHTML = `
-      <div class="system-message">
-        <span class="lock-icon">🔒</span>
-        <span>Switched to ${m.name} (${m.locality}). End-to-end encrypted session.</span>
-      </div>
-    `;
-    appendMessage('vera', m.welcome, { action: 'send', rationale: `Active persona loaded: ${m.name}` });
   }
 
   // ─── Proactive /v1/tick Trigger ───
@@ -437,7 +1000,7 @@
         }
 
         el.tickDrawerBody.innerHTML = '';
-        data.actions.forEach((act, idx) => {
+        data.actions.forEach((act) => {
           const card = document.createElement('div');
           card.className = 'tick-action-card';
           card.innerHTML = `
@@ -468,7 +1031,6 @@
     el.btnSeedContext.innerHTML = '⏳ Seeding...';
 
     try {
-      // Seed category
       await api('/v1/context', 'POST', {
         scope: 'category',
         context_id: 'dentists',
@@ -486,7 +1048,6 @@
         delivered_at: new Date().toISOString(),
       });
 
-      // Seed merchant with active offers & performance
       await api('/v1/context', 'POST', {
         scope: 'merchant',
         context_id: 'm_001_drmeera_dentist_delhi',
@@ -529,7 +1090,8 @@
     try {
       await api('/v1/teardown', 'POST', {});
       alert('Session reset successfully!');
-      switchMerchant(state.activeMerchant);
+      state.conversations = {};
+      openPersonaScreen();
     } catch (err) {
       alert(`Teardown failed: ${err.message}`);
     }
@@ -546,27 +1108,14 @@
 
     // Dev Mode Toggle & Close
     if (el.btnDevMode) {
-      el.btnDevMode.addEventListener('click', () => {
-        setDevMode(!state.devMode);
-      });
+      el.btnDevMode.addEventListener('click', () => setDevMode(!state.devMode));
+    }
+    if (el.btnPersonaDevMode) {
+      el.btnPersonaDevMode.addEventListener('click', () => setDevMode(!state.devMode));
     }
     if (el.btnCloseDevSidebar) {
-      el.btnCloseDevSidebar.addEventListener('click', () => {
-        setDevMode(false);
-      });
+      el.btnCloseDevSidebar.addEventListener('click', () => setDevMode(false));
     }
-
-    // Header merchant persona dropdown
-    if (el.headerMerchantSelect) {
-      el.headerMerchantSelect.addEventListener('change', (e) => {
-        switchMerchant(e.target.value);
-      });
-    }
-
-    // Sidebar merchant persona switcher
-    el.merchantSelect.addEventListener('change', (e) => {
-      switchMerchant(e.target.value);
-    });
 
     // Send button & Enter key
     el.btnSend.addEventListener('click', () => sendMessage());
@@ -591,7 +1140,7 @@
       });
     });
 
-    // Quick Suggestions (Above Chat Input)
+    // Dynamic Quick Suggestions click delegation
     el.quickSuggestions.addEventListener('click', (e) => {
       const chip = e.target.closest('.chip');
       if (chip) {
@@ -620,6 +1169,10 @@
     el.btnClearChat.addEventListener('click', () => {
       if (confirm('Clear current chat view?')) {
         el.messagesContainer.innerHTML = '';
+        const personaKey = state.activeRole === 'merchant' ? state.activeMerchantId : state.activeCustomerId;
+        if (personaKey && state.conversations[personaKey]) {
+          state.conversations[personaKey].turnsHtml = '';
+        }
       }
     });
 
@@ -628,7 +1181,7 @@
       const msgs = Array.from(el.messagesContainer.querySelectorAll('.message-wrapper')).map((w) => {
         const isBot = w.classList.contains('message-bot');
         const text = w.querySelector('.message-text')?.textContent || '';
-        return `[${isBot ? 'Vera' : 'Merchant'}] ${text}`;
+        return `[${isBot ? 'Vera' : state.activeRole === 'customer' ? 'Customer' : 'Merchant'}] ${text}`;
       }).join('\n\n');
 
       const blob = new Blob([msgs], { type: 'text/plain' });
@@ -645,6 +1198,7 @@
     el.backendUrl.value = state.backendUrl;
     el.welcomeTime.textContent = formatTime();
     setDevMode(state.devMode);
+    initPersonaScreen();
     initEvents();
     checkHealth();
   }

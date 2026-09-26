@@ -234,12 +234,61 @@ async function handleReply({ conversation_id, merchant_id, customer_id, from_rol
   conv.turns.push({ from: 'vera', message: reply.body, turn: (turn_number || 0) + 1 });
   store.upsertConversation(conversation_id, conv);
 
+  const suggestedReplies = reply.suggested_replies || deriveSuggestedReplies(reply.body, reply.cta || 'open_ended', merchant, customer, from_role);
+
   return {
     action: 'send',
     body: reply.body,
     cta: reply.cta || 'open_ended',
     rationale: reply.rationale || 'Continuing conversation based on merchant\'s latest message.',
+    suggested_replies: suggestedReplies,
   };
+}
+
+/**
+ * Generate 2-4 context-aware dynamic quick reply options for a message.
+ */
+function deriveSuggestedReplies(body, cta, merchant, customer, from_role) {
+  const text = (body || '').toLowerCase();
+
+  // If customer persona or talking as customer
+  if (from_role === 'customer' || customer) {
+    if (cta === 'binary_yes_stop' || cta === 'binary_confirm_cancel' || text.includes('confirm') || text.includes('book') || text.includes('slot')) {
+      return ['Book appointment', 'Check slot timings', 'Not this week'];
+    }
+    if (text.includes('offer') || text.includes('discount') || text.includes('cleaning') || text.includes('spa')) {
+      return ['Claim this offer', 'Tell me more', 'Not right now'];
+    }
+    return ['Book appointment', 'Check pricing', 'Need more details'];
+  }
+
+  // If binary yes/confirm CTA or Vera asks a confirmation question
+  if (cta === 'binary_yes_stop' || cta === 'binary_confirm_cancel' || text.includes('kya main') || text.includes('should i') || text.includes('bhej dun') || text.includes('reply confirm') || text.includes('kar doon')) {
+    return ['Yes, go live', 'Not right now', 'Edit draft first'];
+  }
+
+  // If performance, views, calls, or peer comparisons
+  if (text.includes('views') || text.includes('calls') || text.includes('ctr') || text.includes('peer') || text.includes('competitor') || text.includes('footfall')) {
+    return ['Compare to peers', 'How to increase calls?', 'Show active offers'];
+  }
+
+  // If offers, promotions, or catalog
+  if (text.includes('offer') || text.includes('discount') || text.includes('package') || text.includes('pricing')) {
+    return ['Launch new offer', 'Show active offers', 'Edit current pricing'];
+  }
+
+  // If reviews or ratings
+  if (text.includes('review') || text.includes('rating') || text.includes('feedback') || text.includes('wait_time')) {
+    return ['See negative reviews', 'Reply to reviews', 'Improve my rating'];
+  }
+
+  // If recalls or lapsed patients/customers
+  if (text.includes('recall') || text.includes('lapsed') || text.includes('patient') || text.includes('client')) {
+    return ['Send WhatsApp recall', 'View patient list', 'Remind next week'];
+  }
+
+  // Default context-relevant merchant suggestions
+  return ['Show active offers', 'Compare to peers', 'Badhao calls'];
 }
 
 /**
@@ -261,4 +310,4 @@ function clearConversationState() {
   merchantAutoStreaks.clear();
 }
 
-module.exports = { handleReply, clearConversationState };
+module.exports = { handleReply, clearConversationState, deriveSuggestedReplies };
