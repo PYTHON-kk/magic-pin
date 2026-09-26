@@ -596,6 +596,8 @@
     // Restore or initialize chat history
     if (session.turnsHtml) {
       el.messagesContainer.innerHTML = session.turnsHtml;
+      // Re-bind click events for action buttons on restored history if needed
+      bindRestoredActionButtons();
     } else {
       el.messagesContainer.innerHTML = `
         <div class="system-message">
@@ -603,12 +605,13 @@
           <span>Messages are end-to-end encrypted with magicpin 4-Context Vera Engine.</span>
         </div>
       `;
-      appendMessage('vera', persona.welcome, { action: 'send', rationale: `Active persona loaded: ${role}` });
+      appendMessage('vera', persona.welcome, {
+        action: 'send',
+        rationale: `Active persona loaded: ${role}`,
+        suggested_replies: persona.initialChips || (role === 'customer' ? ['Book appointment', 'Check price', 'Timings'] : ['Show active offers', 'Boost profile calls', 'Compare to peers']),
+      });
       session.turnsHtml = el.messagesContainer.innerHTML;
     }
-
-    // Update dynamic quick-reply chips
-    updateQuickReplies(session.chips);
 
     // Sync Dev mode stats card
     updateDevStats(persona, role);
@@ -654,30 +657,247 @@
     }
   }
 
-  // ─── Dynamic Quick-Reply Chips ───
-  function updateQuickReplies(replies) {
-    if (!el.quickSuggestions) return;
+  // ─── Bold Key Facts & Specifics Parser ───
+  function formatMessageBodyWithBoldFacts(text) {
+    if (!text) return '';
 
-    if (!replies || !Array.isArray(replies) || replies.length === 0) {
-      replies = state.activeRole === 'customer'
-        ? ['Book appointment', 'Check pricing', 'Need more details']
-        : ['Show active offers', 'Compare to peers', 'Boost profile calls'];
+    // 1. Escape HTML entities
+    let html = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    // 2. Convert explicit markdown **text** to strong
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="fact-bold">$1</strong>');
+
+    // 3. Highlight Indian Rupee currency: ₹299, ₹1,420, ₹499, ₹99, ₹999, Rs 500
+    html = html.replace(/(₹\s*[\d,]+(?:\.\d+)?|\bRs\.?\s*[\d,]+(?:\.\d+)?)/gi, (m) => {
+      return `<strong class="fact-bold">${m}</strong>`;
+    });
+
+    // 4. Highlight percentages: 62% YoY, 35%, 4.2%
+    html = html.replace(/(\b\d+(?:\.\d+)?\s*%\s*(?:YoY|MoM|growth)?\b)/gi, (m) => {
+      return `<strong class="fact-bold">${m}</strong>`;
+    });
+
+    // 5. Highlight clinical & radiation measurements: 1.0 mSv, 15 mGy, etc.
+    html = html.replace(/(\b\d+(?:\.\d+)?\s*(?:mSv|mGy|kVp|mA|min|sec)\b)/gi, (m) => {
+      return `<strong class="fact-bold">${m}</strong>`;
+    });
+
+    // 6. Highlight metric counts: 2,410 views, 18 calls, 4 visits, 12 lapsed patients, 30 days
+    html = html.replace(/(\b\d[\d,]*(?:\.\d+)?\s+(?:views|calls|patients|inquiries|bookings|visits|days|weeks|months|lapsed patients|slots)\b)/gi, (m) => {
+      return `<strong class="fact-bold">${m}</strong>`;
+    });
+
+    // Clean up any double-nested strong tags
+    html = html.replace(/<strong class="fact-bold">(<strong class="fact-bold">.*?<\/strong>)<\/strong>/g, '$1');
+
+    // 7. Convert newlines to line breaks
+    html = html.replace(/\n/g, '<br>');
+
+    return html;
+  }
+
+  // ─── Action Type to Icon and Label Mapping ───
+  function mapActionToIconAndLabel(actionText, ctaType = '') {
+    const clean = (actionText || '').trim();
+    const lower = clean.toLowerCase();
+
+    // Check if already starts with an emoji
+    const leadingEmojiMatch = clean.match(/^([\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F1E6}-\u{1F1FF}✅🔴📤↩️📊🏷️💬📞📅]\s*)/u);
+    if (leadingEmojiMatch) {
+      const icon = leadingEmojiMatch[1].trim();
+      const label = clean.slice(leadingEmojiMatch[0].length).trim();
+      const isDanger = icon === '🔴' || lower.includes('stop') || lower.includes('cancel');
+      return { icon, label, fullText: clean, isDanger, isNeutral: false };
     }
 
-    // Save in session
-    const personaKey = state.activeRole === 'merchant' ? state.activeMerchantId : state.activeCustomerId;
-    if (personaKey && state.conversations[personaKey]) {
-      state.conversations[personaKey].chips = replies;
+    let icon = '💬';
+    let isDanger = false;
+    let isNeutral = false;
+
+    if (
+      lower.includes('publish') ||
+      lower.includes('send live') ||
+      lower.includes('broadcast') ||
+      lower.includes('launch') ||
+      lower.includes('push')
+    ) {
+      icon = '📤';
+    } else if (
+      lower.includes('yes') ||
+      lower.includes('do it') ||
+      lower.includes('confirm') ||
+      lower.includes('proceed') ||
+      lower.includes('go live') ||
+      lower.includes('approve') ||
+      lower.includes('accept') ||
+      lower.includes('book') ||
+      lower.includes('claim') ||
+      lower.includes('agree')
+    ) {
+      icon = '✅';
+    } else if (
+      lower.includes('stop') ||
+      lower.includes('no') ||
+      lower.includes('decline') ||
+      lower.includes('cancel') ||
+      lower.includes('not now') ||
+      lower.includes("don't") ||
+      lower.includes('opt out') ||
+      lower.includes('pause') ||
+      lower.includes('not this week')
+    ) {
+      icon = '🔴';
+      isDanger = true;
+    } else if (
+      lower.includes('undo') ||
+      lower.includes('revert') ||
+      lower.includes('edit') ||
+      lower.includes('change') ||
+      lower.includes('modify') ||
+      lower.includes('draft')
+    ) {
+      icon = '↩️';
+      isNeutral = true;
+    } else if (
+      lower.includes('peer') ||
+      lower.includes('stats') ||
+      lower.includes('compare') ||
+      lower.includes('performance') ||
+      lower.includes('views') ||
+      lower.includes('report')
+    ) {
+      icon = '📊';
+      isNeutral = true;
+    } else if (
+      lower.includes('offer') ||
+      lower.includes('discount') ||
+      lower.includes('price') ||
+      lower.includes('pricing') ||
+      lower.includes('package')
+    ) {
+      icon = '🏷️';
+      isNeutral = true;
+    } else if (
+      lower.includes('recall') ||
+      lower.includes('whatsapp') ||
+      lower.includes('reminder')
+    ) {
+      icon = '💬';
+    } else if (
+      lower.includes('call') ||
+      lower.includes('phone')
+    ) {
+      icon = '📞';
+    } else if (
+      lower.includes('timing') ||
+      lower.includes('slot') ||
+      lower.includes('schedule')
+    ) {
+      icon = '📅';
+      isNeutral = true;
+    } else {
+      icon = '';
+      isNeutral = true;
     }
 
-    el.quickSuggestions.innerHTML = '';
-    replies.forEach((text, idx) => {
-      const chip = document.createElement('button');
-      chip.className = 'chip';
-      chip.textContent = text;
-      chip.setAttribute('data-msg', text);
-      chip.style.animationDelay = `${idx * 0.04}s`;
-      el.quickSuggestions.appendChild(chip);
+    const label = clean;
+    const fullText = icon ? `${icon} ${clean}` : clean;
+    return { icon, label, fullText, isDanger, isNeutral };
+  }
+
+  // ─── Human-Friendly Rationale Reframe ───
+  function reframeRationale(rawRationale, category, merchantName, role) {
+    if (!rawRationale) {
+      return 'Based on local category trends and active profile engagement signals.';
+    }
+
+    const lower = rawRationale.toLowerCase();
+
+    if (lower.includes('research signal') || lower.includes('ctr gap') || lower.includes('peer')) {
+      return 'Based on a category trend affecting your area plus your recent profile view-to-call performance.';
+    }
+    if (lower.includes('compliance') || lower.includes('dci') || lower.includes('radiograph') || lower.includes('norm')) {
+      return 'Recommended in accordance with clinical guidelines and regulatory safety protocols for your category.';
+    }
+    if (lower.includes('recall') || lower.includes('lapsed') || lower.includes('priya')) {
+      return 'Suggested because this patient visited previously and is due for routine preventive care.';
+    }
+    if (lower.includes('festival') || lower.includes('diwali') || lower.includes('seasonal')) {
+      return 'Identified from high seasonal customer demand surges for local service packages in your area.';
+    }
+    if (lower.includes('bridal') || lower.includes('kavya') || lower.includes('package')) {
+      return 'Follow-up on a high-value customer inquiry interested in bridal and salon styling.';
+    }
+    if (lower.includes('opt-out') || lower.includes('hostile') || lower.includes('stop')) {
+      return 'Respecting user preference to pause automated promotional messages immediately.';
+    }
+    if (lower.includes('auto-reply') || lower.includes('automated')) {
+      return 'Paused automatic responses to prevent messaging loops.';
+    }
+    if (lower.includes('active persona loaded')) {
+      return 'Initialized based on your merchant profile, active offers, and local category benchmarks.';
+    }
+
+    // Generic cleanup
+    let cleaned = rawRationale
+      .replace(/^Uses\s+/i, 'Based on ')
+      .replace(/^Triggered by\s+/i, 'Suggested because of ')
+      .replace(/trg_\w+/g, 'recent activity')
+      .replace(/m_\w+/g, 'your profile')
+      .trim();
+
+    if (!cleaned.endsWith('.')) cleaned += '.';
+    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  }
+
+  // ─── Disable Older Action Buttons ───
+  function disableAllActionButtons() {
+    const groups = el.messagesContainer.querySelectorAll('.msg-actions-container:not(.actions-disabled)');
+    groups.forEach((group) => {
+      group.classList.add('actions-disabled');
+      group.querySelectorAll('.msg-action-btn').forEach((btn) => {
+        btn.setAttribute('disabled', 'true');
+      });
+    });
+  }
+
+  function bindRestoredActionButtons() {
+    // Ensure older messages are disabled, and attach listeners
+    const allGroups = Array.from(el.messagesContainer.querySelectorAll('.msg-actions-container'));
+    allGroups.forEach((group, index) => {
+      const isLatest = index === allGroups.length - 1;
+      if (!isLatest) {
+        group.classList.add('actions-disabled');
+        group.querySelectorAll('.msg-action-btn').forEach((btn) => btn.setAttribute('disabled', 'true'));
+      } else {
+        group.classList.remove('actions-disabled');
+        group.querySelectorAll('.msg-action-btn').forEach((btn) => {
+          btn.removeAttribute('disabled');
+          btn.onclick = (e) => {
+            e.preventDefault();
+            const actionText = btn.getAttribute('data-action') || btn.textContent.trim();
+            disableAllActionButtons();
+            sendMessage(actionText);
+          };
+        });
+      }
+    });
+
+    // Re-bind why-this-message accordions
+    el.messagesContainer.querySelectorAll('.why-msg-disclosure').forEach((disclosure) => {
+      const btn = disclosure.querySelector('.why-msg-btn');
+      const panel = disclosure.querySelector('.why-msg-panel');
+      if (btn && panel) {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const isOpen = panel.classList.toggle('open');
+          btn.classList.toggle('expanded', isOpen);
+          btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        };
+      }
     });
   }
 
@@ -715,10 +935,14 @@
   }
 
   // ─── Render Message in Chat ───
-  function appendMessage(sender, text, meta = null) {
+  function appendMessage(sender, text, meta = null, options = {}) {
     const isBot = sender === 'vera';
+
+    // Disable all prior action buttons across the chat
+    disableAllActionButtons();
+
     const wrapper = document.createElement('div');
-    wrapper.className = `message-wrapper ${isBot ? 'message-bot' : 'message-merchant'}`;
+    wrapper.className = `message-wrapper ${isBot ? 'message-bot' : 'message-merchant'} ${options.isTeaser ? 'teaser-followup' : ''}`;
 
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
@@ -726,13 +950,13 @@
     if (isBot) {
       const senderTitle = document.createElement('div');
       senderTitle.className = 'message-sender';
-      senderTitle.textContent = 'Vera AI';
+      senderTitle.textContent = options.senderName || 'Vera AI';
       bubble.appendChild(senderTitle);
     }
 
     const textEl = document.createElement('div');
     textEl.className = 'message-text';
-    textEl.textContent = text;
+    textEl.innerHTML = formatMessageBodyWithBoldFacts(text);
     bubble.appendChild(textEl);
 
     const footer = document.createElement('div');
@@ -751,13 +975,78 @@
     bubble.appendChild(footer);
     wrapper.appendChild(bubble);
 
-    // In Dev Mode: Attach discreet expandable debug trigger and card
+    // 1. Per-Message Action Buttons (for Vera messages)
+    if (isBot && !options.noActions) {
+      const suggested = meta?.suggested_replies || options.suggestedReplies || deriveSuggestedRepliesFrontend(text, meta?.cta);
+      if (suggested && Array.isArray(suggested) && suggested.length > 0) {
+        const actionsContainer = document.createElement('div');
+        actionsContainer.className = 'msg-actions-container';
+
+        suggested.forEach((replyItem) => {
+          const { icon, label, fullText, isDanger, isNeutral } = mapActionToIconAndLabel(replyItem, meta?.cta);
+          const btn = document.createElement('button');
+          btn.className = `msg-action-btn ${isDanger ? 'action-danger' : isNeutral ? 'action-neutral' : ''}`;
+          btn.type = 'button';
+          btn.setAttribute('data-action', fullText);
+          btn.innerHTML = `${icon ? `<span class="action-btn-icon">${icon}</span>` : ''}<span class="action-btn-label">${label}</span>`;
+
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (btn.disabled || btn.closest('.actions-disabled')) return;
+
+            // Tap-to-send: Disable immediately, post outgoing bubble & send to backend
+            disableAllActionButtons();
+            sendMessage(fullText);
+          });
+
+          actionsContainer.appendChild(btn);
+        });
+
+        wrapper.appendChild(actionsContainer);
+      }
+    }
+
+    // 2. "Why this message" Disclosure (for Vera messages)
+    if (isBot) {
+      const whyDisclosure = document.createElement('div');
+      whyDisclosure.className = 'why-msg-disclosure';
+
+      const whyBtn = document.createElement('button');
+      whyBtn.className = 'why-msg-btn';
+      whyBtn.type = 'button';
+      whyBtn.setAttribute('aria-expanded', 'false');
+      whyBtn.innerHTML = `<span class="why-icon">ⓘ</span><span class="why-text">why this message</span><span class="why-chevron">▾</span>`;
+
+      const whyPanel = document.createElement('div');
+      whyPanel.className = 'why-msg-panel';
+      const friendlyRationale = reframeRationale(
+        meta?.rationale,
+        state.activePersona?.category_slug,
+        state.activePersona?.identity?.name,
+        state.activeRole
+      );
+      whyPanel.innerHTML = `<div class="why-msg-content">${friendlyRationale}</div>`;
+
+      whyBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = whyPanel.classList.toggle('open');
+        whyBtn.classList.toggle('expanded', isOpen);
+        whyBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      });
+
+      whyDisclosure.appendChild(whyBtn);
+      whyDisclosure.appendChild(whyPanel);
+      wrapper.appendChild(whyDisclosure);
+    }
+
+    // 3. Dev Mode: Technical Diagnostics Toggle & Card
     if (isBot && meta && (meta.action || meta.rationale || meta.cta)) {
       const debugToggle = document.createElement('button');
       debugToggle.className = 'msg-debug-trigger';
       debugToggle.type = 'button';
       debugToggle.title = 'Inspect LLM & Decision Diagnostics (Dev Mode)';
-      debugToggle.innerHTML = `<span>ⓘ</span> <span>Debug Info</span>`;
+      debugToggle.innerHTML = `<span>⚙️</span> <span>Dev Diagnostics</span>`;
 
       const debugCard = document.createElement('div');
       debugCard.className = 'msg-debug-card';
@@ -783,96 +1072,6 @@
     el.messagesContainer.scrollTop = el.messagesContainer.scrollHeight;
 
     playSound(isBot ? 'receive' : 'send');
-  }
-
-  // ─── Show / Hide Typing Indicator ───
-  let typingIndicatorEl = null;
-
-  function showTyping() {
-    if (typingIndicatorEl) return;
-    typingIndicatorEl = document.createElement('div');
-    typingIndicatorEl.className = 'message-wrapper message-bot';
-    typingIndicatorEl.innerHTML = `
-      <div class="typing-bubble">
-        <span class="dot"></span>
-        <span class="dot"></span>
-        <span class="dot"></span>
-      </div>
-    `;
-    el.messagesContainer.appendChild(typingIndicatorEl);
-    el.messagesContainer.scrollTop = el.messagesContainer.scrollHeight;
-  }
-
-  function hideTyping() {
-    if (typingIndicatorEl && typingIndicatorEl.parentNode) {
-      typingIndicatorEl.parentNode.removeChild(typingIndicatorEl);
-    }
-    typingIndicatorEl = null;
-  }
-
-  // ─── Send Message to /v1/reply ───
-  async function sendMessage(text) {
-    const msg = (text || el.messageInput.value).trim();
-    if (!msg) return;
-
-    el.messageInput.value = '';
-    el.messageInput.style.height = 'auto';
-
-    // Append user message
-    appendMessage(state.activeRole, msg);
-    showTyping();
-
-    try {
-      const payload = {
-        conversation_id: state.conversationId,
-        merchant_id: state.activeMerchantId,
-        customer_id: state.activeCustomerId,
-        from_role: state.activeRole,
-        message: msg,
-        turn_number: state.turnNumber,
-        received_at: new Date().toISOString(),
-      };
-
-      const { data, status, latency } = await api('/v1/reply', 'POST', payload);
-      hideTyping();
-
-      state.turnNumber++;
-
-      if (status === 200 && data) {
-        if (data.body && data.body.trim()) {
-          appendMessage('vera', data.body.trim(), {
-            action: data.action,
-            cta: data.cta,
-            rationale: data.rationale,
-            latency,
-          });
-
-          // Update dynamic chips from backend suggested_replies or fallback
-          const replies = data.suggested_replies || deriveSuggestedRepliesFrontend(data.body, data.cta);
-          updateQuickReplies(replies);
-        } else if (data.action === 'wait') {
-          // If the bot has nothing to send, in Clean Mode don't render a bubble at all.
-          // In Dev Mode, render a developer event log so engineers see the suppression/cooldown rationale.
-          const devEvent = document.createElement('div');
-          devEvent.className = 'dev-log-event';
-          devEvent.innerHTML = `⚙️ <strong>Vera Restraint:</strong> Bot chose action <code>WAIT</code>. Rationale: ${data.rationale || 'Cooling down / suppressed'}`;
-          el.messagesContainer.appendChild(devEvent);
-          el.messagesContainer.scrollTop = el.messagesContainer.scrollHeight;
-        } else if (data.action === 'end') {
-          appendMessage('vera', 'Thank you! Let me know if you need anything else.', {
-            action: 'end',
-            rationale: data.rationale,
-            latency,
-          });
-          updateQuickReplies(['Start new query', 'Show active offers']);
-        }
-      } else {
-        appendMessage('vera', 'Sorry, I encountered an issue reaching the server.', { action: 'error' });
-      }
-    } catch (err) {
-      hideTyping();
-      appendMessage('vera', `Connection Error: ${err.message}`, { action: 'error' });
-    }
   }
 
   // ─── Proactive /v1/tick Trigger ───
@@ -1050,14 +1249,16 @@
       });
     });
 
-    // Dynamic Quick Suggestions click delegation
-    el.quickSuggestions.addEventListener('click', (e) => {
-      const chip = e.target.closest('.chip');
-      if (chip) {
-        const msg = chip.getAttribute('data-msg');
-        sendMessage(msg);
-      }
-    });
+    // Dynamic Quick Suggestions click delegation (if present)
+    if (el.quickSuggestions) {
+      el.quickSuggestions.addEventListener('click', (e) => {
+        const chip = e.target.closest('.chip');
+        if (chip) {
+          const msg = chip.getAttribute('data-msg');
+          sendMessage(msg);
+        }
+      });
+    }
 
     // Proactive Feed Drawer
     el.btnTick.addEventListener('click', runTick);
@@ -1106,7 +1307,7 @@
   // ─── Initialization ───
   function init() {
     el.backendUrl.value = state.backendUrl;
-    el.welcomeTime.textContent = formatTime();
+    if (el.welcomeTime) el.welcomeTime.textContent = formatTime();
     setDevMode(state.devMode);
     initPersonaScreen();
     initEvents();

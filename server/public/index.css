@@ -727,6 +727,14 @@ input[type="text"]:focus,
 .message-text {
   white-space: pre-wrap;
   line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.message-text strong,
+.message-text .fact-bold {
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: 0.01em;
 }
 
 .message-footer {
@@ -749,13 +757,6 @@ input[type="text"]:focus,
 .check-icon {
   font-size: 0.75rem;
   color: #53BDEB;
-}
-
-/* Clean Mode: Hide technical badges & metadata from chat bubbles */
-.bubble-meta,
-.rationale-box,
-.meta-pill {
-  display: none !important;
 }
 
 /* In Dev Mode: Show discreet debug inspect trigger ⓘ */
@@ -846,6 +847,172 @@ input[type="text"]:focus,
   padding-top: 4px;
   margin-top: 4px;
   font-style: italic;
+}
+
+/* ─── Per-Message Action Buttons ─── */
+.msg-actions-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.msg-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(0, 168, 132, 0.12);
+  border: 1px solid rgba(0, 168, 132, 0.35);
+  border-radius: 10px;
+  color: #00E676;
+  font-size: 0.86rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.msg-action-btn:hover:not(:disabled) {
+  background: rgba(0, 168, 132, 0.22);
+  border-color: rgba(0, 168, 132, 0.65);
+  color: #FFFFFF;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 168, 132, 0.25);
+}
+
+.msg-action-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.msg-action-btn.action-danger {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #F87171;
+}
+
+.msg-action-btn.action-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.65);
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+}
+
+.msg-action-btn.action-neutral {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.msg-action-btn.action-neutral:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.action-btn-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.action-btn-label {
+  line-height: 1.2;
+}
+
+/* Disabled / Older Message Buttons */
+.actions-disabled,
+.msg-action-btn:disabled,
+.actions-disabled .msg-action-btn {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  color: var(--text-muted) !important;
+  filter: grayscale(0.4);
+}
+
+/* ─── "Why this message" Disclosure ─── */
+.why-msg-disclosure {
+  margin-top: 6px;
+  width: 100%;
+}
+
+.why-msg-btn {
+  background: none;
+  border: none;
+  padding: 3px 6px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  user-select: none;
+  font-family: inherit;
+}
+
+.why-msg-btn:hover {
+  color: #38BDF8;
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.why-msg-btn .why-icon {
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.why-msg-btn .why-chevron {
+  font-size: 0.65rem;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-block;
+}
+
+.why-msg-btn.expanded .why-chevron {
+  transform: rotate(180deg);
+}
+
+.why-msg-panel {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, margin-top 0.2s ease;
+  opacity: 0;
+}
+
+.why-msg-panel.open {
+  max-height: 140px;
+  opacity: 1;
+  margin-top: 4px;
+}
+
+.why-msg-content {
+  font-size: 0.74rem;
+  color: #94A3B8;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 8px;
+  padding: 7px 10px;
+  line-height: 1.45;
+}
+
+/* Next Up Teaser Bubble Animation */
+.message-wrapper.teaser-followup {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-top: 6px;
+}
+
+.message-wrapper.teaser-followup .bubble {
+  border-left: 3px solid #38BDF8;
 }
 
 /* Dev Log Event for Wait/Suppression in Dev Mode */
