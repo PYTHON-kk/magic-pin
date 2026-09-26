@@ -29,25 +29,48 @@ function detectAutoReply(merchantMessages, currentMessage) {
     /your (?:query|request|message) (?:has been|is) (?:received|noted|forwarded)/i,
   ];
 
-  // If a single message string is provided
-  if (typeof currentMessage === 'string' && currentMessage.trim()) {
-    if (autoPatterns.some((p) => p.test(currentMessage))) return true;
-  }
+  // Whitelist of regular user actions, questions, or chips that should NEVER be flagged as auto-replies
+  const interactiveExclusions = [
+    /how to increase calls/i,
+    /show active offers/i,
+    /compare to peers/i,
+    /launch new offer/i,
+    /boost profile calls/i,
+    /edit current pricing/i,
+    /yes/i,
+    /no/i,
+    /hello/i,
+    /hi/i,
+    /not right now/i,
+  ];
 
-  if (typeof merchantMessages === 'string') {
-    return autoPatterns.some((p) => p.test(merchantMessages));
-  }
+  const msgToCheck = (typeof currentMessage === 'string' && currentMessage.trim())
+    ? currentMessage.trim()
+    : (Array.isArray(merchantMessages) && merchantMessages.length > 0)
+    ? merchantMessages[merchantMessages.length - 1]?.trim()
+    : (typeof merchantMessages === 'string' ? merchantMessages.trim() : '');
 
-  if (!Array.isArray(merchantMessages) || merchantMessages.length === 0) {
+  if (!msgToCheck) return false;
+
+  // Never flag known user interactive chips/queries
+  if (interactiveExclusions.some((p) => p.test(msgToCheck))) {
     return false;
   }
 
-  const last = merchantMessages[merchantMessages.length - 1]?.trim().toLowerCase();
-  if (!last) return false;
+  // 1. Explicit pattern match for canned WhatsApp Business auto-replies
+  if (autoPatterns.some((p) => p.test(msgToCheck))) {
+    return true;
+  }
 
-  if (autoPatterns.some((p) => p.test(last))) return true;
+  if (!Array.isArray(merchantMessages) || merchantMessages.length < 3) {
+    return false;
+  }
 
-  // Check if same message repeated 2+ times
+  const last = msgToCheck.toLowerCase();
+
+  // 2. Challenge brief: same message verbatim 3+ times = auto-reply (only if substantial text)
+  if (last.length < 15) return false;
+
   let repeatCount = 0;
   for (let i = merchantMessages.length - 1; i >= 0; i--) {
     if (merchantMessages[i]?.trim().toLowerCase() === last) {
@@ -57,7 +80,7 @@ function detectAutoReply(merchantMessages, currentMessage) {
     }
   }
 
-  return repeatCount >= 2;
+  return repeatCount >= 3;
 }
 
 /* ─── Hostile / abusive message detection ─── */
@@ -103,6 +126,63 @@ function detectOptOut(message) {
   return optOut.some((p) => p.test(message));
 }
 
+/* ─── Decline / Hesitation detection ─── */
+
+/**
+ * Detect explicit or soft decline ("not right now", "maybe later", "no thanks").
+ * Prevents aggressive pitch looping when user declines a suggestion.
+ */
+function detectDecline(message) {
+  if (!message || typeof message !== 'string') return false;
+  const clean = message
+    .replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F1E6}-\u{1F1FF}✅🔴📤↩️📊🏷️💬📞📅]\s*/u, '')
+    .trim()
+    .toLowerCase();
+
+  const declinePatterns = [
+    /^not\s*right\s*now\b/i,
+    /^not\s*now\b/i,
+    /^maybe\s*later\b/i,
+    /^later\b/i,
+    /^not\s*today\b/i,
+    /^not\s*this\s*week\b/i,
+    /^no\s*thanks?\b/i,
+    /^no\s*thank\s*you\b/i,
+    /^no\s*,?\s*not\s*now\b/i,
+    /^nahi\s*abhi\s*nahi\b/i,
+    /^abhi\s*nahi\b/i,
+    /^skip\b/i,
+    /^leave\s*it\b/i,
+    /^don'?t\s*do\s*it\b/i,
+    /^no\b$/i,
+    /^nah\b$/i,
+    /^nope\b$/i,
+  ];
+
+  return declinePatterns.some((p) => p.test(clean));
+}
+
+/* ─── Greeting detection ─── */
+
+/**
+ * Detect friendly greetings ("hello", "hi", "hey", "good morning") to avoid
+ * hallucinating non-existent past requests on casual check-ins.
+ */
+function isGreeting(message) {
+  if (!message || typeof message !== 'string') return false;
+  const clean = message
+    .replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F1E6}-\u{1F1FF}✅🔴📤↩️📊🏷️💬📞📅]\s*/u, '')
+    .trim()
+    .toLowerCase();
+
+  const greetingPatterns = [
+    /^(hello|hi|hey|heya|good\s*(?:morning|afternoon|evening)|namaste|greetings)\b/i,
+    /^(hi|hello)\s+vera\b/i,
+  ];
+
+  return greetingPatterns.some((p) => p.test(clean)) && clean.length < 25;
+}
+
 /* ─── Off-topic detection ─── */
 
 /**
@@ -127,5 +207,7 @@ module.exports = {
   detectAutoReply,
   detectHostile,
   detectOptOut,
+  detectDecline,
+  isGreeting,
   detectOffTopic,
 };

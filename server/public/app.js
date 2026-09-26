@@ -770,14 +770,15 @@
       icon = '✅';
     } else if (
       lower.includes('stop') ||
-      lower.includes('no') ||
+      lower.includes('not right now') ||
+      lower.includes('not now') ||
       lower.includes('decline') ||
       lower.includes('cancel') ||
-      lower.includes('not now') ||
       lower.includes("don't") ||
       lower.includes('opt out') ||
       lower.includes('pause') ||
-      lower.includes('not this week')
+      lower.includes('not this week') ||
+      /\bno\b/i.test(lower)
     ) {
       icon = '🔴';
       isDanger = true;
@@ -945,9 +946,36 @@
     }
 
     // Merchant role
-    if (cta === 'binary_yes_stop' || cta === 'binary_confirm_cancel' || text.includes('should i') || text.includes('confirm') || text.includes('publish') || text.includes('ready to launch')) {
-      return ['Yes, go live', 'Not right now', 'Edit draft first'];
+    // 1. Prioritize confirmation questions — match buttons to the specific question asked
+    const isConfirmationQuestion =
+      cta === 'binary_yes_stop' ||
+      cta === 'binary_confirm_cancel' ||
+      /\b(?:want\s*me\s*to|shall\s*(?:i|we)|would\s*you\s*like\s*(?:me\s*to)?|should\s*(?:i|we)|ready\s*(?:for\s*me\s*to|to\s*(?:launch|publish|go\s*live|update|draft))|do\s*you\s*want\s*(?:me\s*to)?|can\s*i\s*(?:draft|update|send|set)|want\s*to\s*go\s*ahead|reply\s*confirm|kya\s*main|bhej\s*dun|kar\s*doon)\b/i.test(text) ||
+      (/\?\s*$/.test(text) && /\b(?:update|draft|publish|launch|send|renew|activate|proceed|set\s*up)\b/i.test(text));
+
+    if (isConfirmationQuestion) {
+      if (text.includes('cta') || text.includes('call to action')) {
+        return ['Yes, update CTAs', 'Not right now', 'Edit draft first'];
+      }
+      if (text.includes('renew') || text.includes('cleaning') || text.includes('draft a renewal')) {
+        return ['Yes, draft renewal', 'Not right now', 'Edit draft first'];
+      }
+      if (text.includes('recall') || text.includes('patient') || text.includes('reminder')) {
+        return ['Yes, send recalls', 'Not right now', 'View patient list'];
+      }
+      if (text.includes('whatsapp') || text.includes('prescription') || text.includes('ordering')) {
+        return ['Yes, enable WhatsApp orders', 'Not right now', 'Show active offers'];
+      }
+      if (text.includes('publish') || text.includes('go live') || text.includes('launch') || text.includes('push')) {
+        return ['Yes, go live', 'Not right now', 'Edit draft first'];
+      }
+      if (text.includes('slot') || text.includes('timing') || text.includes('appointment')) {
+        return ['Yes, lock slot', 'Check timings', 'Not this week'];
+      }
+      return ['Yes, do it', 'Not right now', 'Edit draft first'];
     }
+
+    // 2. Topic matches
     if (text.includes('views') || text.includes('calls') || text.includes('ctr') || text.includes('peer') || text.includes('competitor') || text.includes('ranking')) {
       return ['Compare to peers', 'How to increase calls?', 'Show active offers'];
     }
@@ -1198,6 +1226,28 @@
       };
     }
 
+    // Declines / not right now
+    if (text.includes('not right now') || text.includes('not now') || text.includes('maybe later') || text.includes('no thanks') || text === 'no' || text.includes('🔴')) {
+      return {
+        action: 'send',
+        body: `Understood, ${name}! No problem at all. Your profile and active offers in **${loc}** remain live and running smoothly. Let me know whenever you would like to explore changes or review your metrics.`,
+        cta: 'open_ended',
+        rationale: 'Acknowledged decline politely, confirmed profile stability, and avoided pitch-looping.',
+        suggested_replies: ['🏷️ Show active offers', '📞 Boost profile calls', '📊 Compare to peers']
+      };
+    }
+
+    // Greetings
+    if (text === 'hello' || text === 'hi' || text === 'hey' || text.startsWith('hello ') || text.startsWith('hi ')) {
+      return {
+        action: 'send',
+        body: `Hello ${name}! I am actively monitoring your Google Business Profile and active promotions in **${loc}**. How can I assist your business today?`,
+        cta: 'open_ended',
+        rationale: 'Welcomed merchant with contextual greeting without inventing past requests.',
+        suggested_replies: ['🏷️ Show active offers', '📞 Boost profile calls', '📊 Compare to peers']
+      };
+    }
+
     if (text.includes('recall') || text.includes('patient') || text.includes('lapsed') || text.includes('client')) {
       return {
         action: 'send',
@@ -1210,7 +1260,7 @@
 
     return {
       action: 'send',
-      body: `Hello ${name}! I am actively monitoring your Google Business Profile, active offers, and local engagement in **${loc}** (**${views} views**, **${calls} calls** in 30 days). How can I assist your business growth today?`,
+      body: `Hello ${name}! I am actively monitoring your Google Business Profile and active promotions in **${loc}**. How can I assist your business growth today?`,
       cta: 'open_ended',
       rationale: 'Responded with live merchant metrics and category-specific assistance options.',
       suggested_replies: ['🏷️ Show active offers', '📞 Boost profile calls', '📊 Compare to peers']

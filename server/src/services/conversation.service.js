@@ -11,7 +11,7 @@
 
 const store = require('./context.service');
 const { composeReply } = require('./composition.service');
-const { detectAutoReply, detectHostile, detectOptOut, detectOffTopic } = require('../rules/safety.rules');
+const { detectAutoReply, detectHostile, detectOptOut, detectDecline, isGreeting, detectOffTopic } = require('../rules/safety.rules');
 const { detectIntentTransition } = require('../rules/intent.rules');
 const { isDuplicateBody, recordSent } = require('../rules/repetition.rules');
 const logger = require('../utils/logger');
@@ -35,13 +35,18 @@ async function handleReply({ conversation_id, merchant_id, customer_id, from_rol
     });
   }
 
-  // If a conversation starts or is rerun from the beginning (turn <= 2), reset its state
-  if (!turn_number || turn_number <= 2) {
+  // If conversation is brand new or explicitly restarted with turn 1, initialize turns.
+  // Never reset turns if turn_number is 2 on an existing conversation with history!
+  if (!conv.turns || conv.turns.length === 0) {
     conv.state = 'ACTIVE';
-    conv.turns = [{ from: from_role, message, turn: turn_number }];
+    conv.turns = [{ from: from_role, message, turn: turn_number || 1 }];
+    conv.autoReplyStreak = 0;
+  } else if (turn_number === 1) {
+    conv.state = 'ACTIVE';
+    conv.turns = [{ from: from_role, message, turn: 1 }];
     conv.autoReplyStreak = 0;
   } else {
-    // Record the incoming message
+    // Record the incoming message to active conversation
     conv.turns.push({ from: from_role, message, turn: turn_number });
   }
 
@@ -169,11 +174,13 @@ async function handleReply({ conversation_id, merchant_id, customer_id, from_rol
         }
         conv.turns.push({ from: 'vera', message: body, turn: (turn_number || 0) + 1 });
         store.upsertConversation(conversation_id, conv);
+        const actionSuggestedReplies = actionReply.suggested_replies || deriveSuggestedReplies(body, actionReply.cta || 'open_ended', merchant, customer, from_role);
         return {
           action: 'send',
           body,
           cta: actionReply.cta || 'open_ended',
           rationale: `Intent transition detected ("${message.substring(0, 30)}..."). Routing directly to action mode — no more qualifying questions. ${actionReply.rationale || ''}`,
+          suggested_replies: actionSuggestedReplies,
         };
       }
     }
@@ -188,6 +195,57 @@ async function handleReply({ conversation_id, merchant_id, customer_id, from_rol
       body: fallbackAction,
       cta: 'open_ended',
       rationale: 'Intent transition detected. Switching to action mode immediately (avoiding Pattern D anti-pattern).',
+      suggested_replies: ['Show active offers', 'Boost profile calls', 'Compare to peers'],
+    };
+  }
+
+  // ── Rule 4b: Decline / Hesitation ("not right now", "maybe later", "no thanks") ──
+  if (detectDecline(message)) {
+    const merchant = store.getContext('merchant', merchant_id) || { identity: { owner_first_name: 'there' } };
+    const ownerName = merchant.identity?.owner_first_name || 'there';
+    const isDoctor = merchant.category_slug === 'dentists';
+    const prefix = isDoctor ? `Dr. ${ownerName}` : ownerName;
+    const activeOffer = merchant.offers?.find((o) => o.status === 'active')?.title;
+
+    const declineBody = activeOffer
+      ? `Understood, ${prefix}! No problem at all. Your profile and active offer (${activeOffer}) remain live and running smoothly. Let me know whenever you'd like to make adjustments or review your metrics.`
+      : `Understood, ${prefix}! No problem at all. Your profile remains active and monitored. Let me know whenever you'd like to explore promotions or review your performance.`;
+
+    conv.turns.push({ from: 'vera', message: declineBody, turn: (turn_number || 0) + 1 });
+    store.upsertConversation(conversation_id, conv);
+    recordSent(conversation_id, declineBody);
+
+    return {
+      action: 'send',
+      body: declineBody,
+      cta: 'open_ended',
+      rationale: 'Merchant signaled hesitation or decline ("not right now"). Acknowledging politely, confirming profile stability, and refraining from pitch-looping.',
+      suggested_replies: ['Show active offers', 'Boost profile calls', 'Compare to peers'],
+    };
+  }
+
+  // ── Rule 4c: Greeting ("hello", "hi", "good morning") ──
+  if (isGreeting(message)) {
+    const merchant = store.getContext('merchant', merchant_id) || { identity: { owner_first_name: 'there' } };
+    const ownerName = merchant.identity?.owner_first_name || 'there';
+    const isDoctor = merchant.category_slug === 'dentists';
+    const prefix = isDoctor ? `Dr. ${ownerName}` : ownerName;
+    const activeOffer = merchant.offers?.find((o) => o.status === 'active')?.title;
+
+    const greetingBody = activeOffer
+      ? `Hello ${prefix}! I am actively monitoring your Google Business Profile and active offers (including ${activeOffer}). How can I assist you or your clinic today?`
+      : `Hello ${prefix}! I am actively monitoring your Google Business Profile and local customer engagement. How can I assist you today?`;
+
+    conv.turns.push({ from: 'vera', message: greetingBody, turn: (turn_number || 0) + 1 });
+    store.upsertConversation(conversation_id, conv);
+    recordSent(conversation_id, greetingBody);
+
+    return {
+      action: 'send',
+      body: greetingBody,
+      cta: 'open_ended',
+      rationale: 'Merchant sent a greeting. Responded warmly and grounded in current profile context without inventing past requests.',
+      suggested_replies: ['Show active offers', 'Boost profile calls', 'Compare to peers'],
     };
   }
 
@@ -274,11 +332,36 @@ function deriveSuggestedReplies(body, cta, merchant, customer, from_role) {
     return ['Book appointment', 'Check pricing', 'Need more details'];
   }
 
-  // If binary yes/confirm CTA or Vera asks a confirmation question
-  if (cta === 'binary_yes_stop' || cta === 'binary_confirm_cancel' || text.includes('kya main') || text.includes('should i') || text.includes('bhej dun') || text.includes('reply confirm') || text.includes('kar doon')) {
-    return ['Yes, go live', 'Not right now', 'Edit draft first'];
+  // 1. Prioritize confirmation questions — match buttons to the specific question asked
+  const isConfirmationQuestion =
+    cta === 'binary_yes_stop' ||
+    cta === 'binary_confirm_cancel' ||
+    /\b(?:want\s*me\s*to|shall\s*(?:i|we)|would\s*you\s*like\s*(?:me\s*to)?|should\s*(?:i|we)|ready\s*(?:for\s*me\s*to|to\s*(?:launch|publish|go\s*live|update|draft))|do\s*you\s*want\s*(?:me\s*to)?|can\s*i\s*(?:draft|update|send|set)|want\s*to\s*go\s*ahead|reply\s*confirm|kya\s*main|bhej\s*dun|kar\s*doon)\b/i.test(text) ||
+    (/\?\s*$/.test(text) && /\b(?:update|draft|publish|launch|send|renew|activate|proceed|set\s*up)\b/i.test(text));
+
+  if (isConfirmationQuestion) {
+    if (text.includes('cta') || text.includes('call to action')) {
+      return ['Yes, update CTAs', 'Not right now', 'Edit draft first'];
+    }
+    if (text.includes('renew') || text.includes('cleaning') || text.includes('draft a renewal')) {
+      return ['Yes, draft renewal', 'Not right now', 'Edit draft first'];
+    }
+    if (text.includes('recall') || text.includes('patient') || text.includes('reminder')) {
+      return ['Yes, send recalls', 'Not right now', 'View patient list'];
+    }
+    if (text.includes('whatsapp') || text.includes('prescription') || text.includes('ordering')) {
+      return ['Yes, enable WhatsApp orders', 'Not right now', 'Show active offers'];
+    }
+    if (text.includes('publish') || text.includes('go live') || text.includes('launch') || text.includes('push')) {
+      return ['Yes, go live', 'Not right now', 'Edit draft first'];
+    }
+    if (text.includes('slot') || text.includes('timing') || text.includes('appointment')) {
+      return ['Yes, lock slot', 'Check timings', 'Not this week'];
+    }
+    return ['Yes, do it', 'Not right now', 'Edit draft first'];
   }
 
+  // 2. Informational questions or topic responses
   // If performance, views, calls, or peer comparisons
   if (text.includes('views') || text.includes('calls') || text.includes('ctr') || text.includes('peer') || text.includes('competitor') || text.includes('footfall')) {
     return ['Compare to peers', 'How to increase calls?', 'Show active offers'];

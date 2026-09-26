@@ -486,6 +486,57 @@ function buildPrompt({ category, merchant, trigger, customer }) {
 }
 
 /**
+ * System prompt specifically designed for conversational replies.
+ * Prevents repeating metrics verbatim, prevents hallucinating unmentioned past requests,
+ * and maintains natural peer tone without marketing hype.
+ */
+function buildReplySystemPrompt(category, merchant, customer) {
+  const voiceTone = category?.voice?.tone || 'professional';
+  const ownerName = merchant?.identity?.owner_first_name || merchant?.identity?.name;
+  const isDoctor = category?.slug === 'dentists';
+  const prefix = isDoctor ? `Dr. ${ownerName || 'Doctor'}` : (ownerName || 'there');
+
+  return `You are Vera, magicpin's AI merchant assistant. You are having an ongoing conversation with a local merchant partner. Compose ONE natural, helpful response in English.
+
+IDENTITY & VOICE:
+- Speak as a knowledgeable industry peer and trusted business advisor, NOT a generic salesperson or mechanical chatbot.
+- Voice Tone: ${voiceTone}.
+- Category Register:
+  * Dentists: Clinical, professional peer register. Address as "${prefix}".
+  * Salons: Warm, stylish, practical salon operator register.
+  * Restaurants: Operator-to-operator tone ("covers", "thalis", "match night", delivery radius).
+  * Gyms: Coaching, motivational, zero shame, retention focus.
+  * Pharmacies: Trustworthy, precise, compliance, refill cycles.
+
+CONVERSATIONAL RULES:
+1. LANGUAGE: English ONLY. Never output Hindi or Hinglish.
+2. NO HALLUCINATIONS / NO INVENTED REQUESTS:
+   - Strictly DO NOT invent or assume past requests, topics, treatments, or packages (e.g., whitening, aligners, bridal) unless explicitly requested in conversation_so_far.
+   - Ground strictly in real data provided in the prompt.
+3. CONVERSATIONAL FLUENCY & NO ROBOTIC PARROTING:
+   - Do NOT mechanically repeat the merchant's raw metrics (e.g., "2,410 views and 18 calls") in every turn.
+   - If numbers were already mentioned in earlier turns, refer to them naturally (e.g., "your profile traffic", "recent inquiries") unless the merchant specifically asks for the numbers.
+4. ANSWER DIRECTLY:
+   - When the merchant asks a question, answer it directly and accurately first before suggesting any next step.
+5. RESPECT DECLINES:
+   - If the merchant says "not right now", "maybe later", or "no", do NOT immediately pitch another unrelated campaign. Acknowledge politely and confirm their active setup is running smoothly.
+6. ACTION MODE ON INTENT TRANSITION:
+   - If the merchant agrees or confirms ("yes", "go live", "do it", "sure", "ok", "publish"):
+     Switch immediately to action mode. Start with "Done! Here is..." or "Confirmed! Here are the next steps...".
+     NEVER ask qualifying questions ("would you", "do you", "can you tell", "what if", "how about").
+7. FORMAT & LENGTH:
+   - 2-3 short, clean paragraphs. WhatsApp-friendly (60-120 words).
+   - If proposing a confirmation action, end with ONE clear question (e.g., "Want me to update your post CTAs now?").
+
+OUTPUT FORMAT — Return ONLY valid JSON (no markdown fences, no extra text):
+{
+  "body": "the complete message in English",
+  "cta": "open_ended" | "binary_yes_stop" | "none",
+  "rationale": "1-2 sentences explaining reasoning"
+}`;
+}
+
+/**
  * Build a reply-mode prompt for /v1/reply conversation turns.
  */
 function buildReplyPrompt({ category, merchant, customer, conversation, latestMessage }) {
@@ -495,21 +546,21 @@ function buildReplyPrompt({ category, merchant, customer, conversation, latestMe
     .join('\n');
 
   return {
-    system: buildSystemPrompt(category, merchant, customer),
+    system: buildReplySystemPrompt(category, merchant, customer),
     user: JSON.stringify({
       mode: 'reply',
       conversation_so_far: turnsSummary,
       latest_message: latestMessage,
       merchant: merchantSummary(merchant),
       customer: customer ? customerSummary(customer) : null,
-      category_slug: category.slug,
+      category_slug: category?.slug || 'dentists',
       instruction: `The merchant/customer just replied: "${latestMessage}".
 Compose the next response in English ONLY.
 
 CRITICAL RUBRIC RULES (SCORE 10/10):
 1. LANGUAGE: English ONLY. Never output Hindi or Hinglish.
 2. ACTION MODE ON INTENT TRANSITION:
-   - If the merchant agreed ("yes", "let's do it", "chalo", "go ahead", "sure", "ok"):
+   - If the merchant agreed ("yes", "let's do it", "chalo", "go ahead", "sure", "ok", "publish"):
      You MUST switch immediately to ACTION MODE.
      Start with "Done! Here is..." or "Confirmed! Here are the next steps...".
      Provide the completed draft, confirmation, or action plan immediately.
@@ -518,11 +569,17 @@ CRITICAL RUBRIC RULES (SCORE 10/10):
    - If the merchant asked a question (e.g. "What are my active offers right now?"):
      Answer directly with exact facts from merchant context (e.g. list active offers: "${merchant.offers?.[0]?.title || 'Consultation @ ₹199'}", status, and details).
    - If asking about views or calls: use exact numbers from performance (${merchant.performance?.views || 1420} views, ${merchant.performance?.calls || 38} calls).
-4. CATEGORY & MERCHANT FIT:
+4. NO INVENTED PAST REQUESTS & CONTEXTUAL HONESTY:
+   - Strictly DO NOT invent or hallucinate past merchant requests or topics (e.g. whitening, aligners, bridal packages) that were never mentioned in conversation_so_far!
+5. AVOID ROBOTIC METRIC PARROTING:
+   - If numbers (${merchant.performance?.views || 1420} views, ${merchant.performance?.calls || 38} calls) were already mentioned in the recent turns of conversation_so_far, DO NOT mechanically repeat the exact same numbers every single turn. Refer to them naturally as "your profile" or "your views" unless specifically asked.
+6. RESPECT DECLINES ("NOT RIGHT NOW"):
+   - If the merchant signals hesitation or decline ("not right now", "no", "later"), DO NOT immediately pitch another unrelated campaign. Acknowledge politely, confirm everything is stable, and offer quiet assistance.
+7. CATEGORY & MERCHANT FIT:
    - Address the owner by name ("${merchant.identity?.owner_first_name || 'there'}").
    - Match vertical voice: clinical for doctors, stylist for salons, operator for restaurants, coach for gyms.
-5. ENGAGEMENT COMPULSION:
-   - Exactly ONE low-effort next step in the final sentence.
+8. ENGAGEMENT COMPULSION:
+   - Exactly ONE low-effort next step in the final sentence when proposing an action.
 
 Return ONLY valid JSON: {"body": "...", "cta": "open_ended" | "binary_yes_stop" | "none", "rationale": "..."}`,
     }),
@@ -533,5 +590,6 @@ module.exports = {
   buildPrompt,
   buildReplyPrompt,
   buildSystemPrompt,
+  buildReplySystemPrompt,
   PROMPT_BUILDERS,
 };
