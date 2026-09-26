@@ -12,7 +12,7 @@ const { validateMessage } = require('../validators/message.validator');
 const { isDuplicateBody, recordSent } = require('../rules/repetition.rules');
 const logger = require('../utils/logger');
 
-const MAX_RETRIES = 1;
+const MAX_RETRIES = 0;
 
 /**
  * Compose a proactive message for a trigger (used by /v1/tick).
