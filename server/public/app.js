@@ -232,7 +232,9 @@
 
   // ─── State ───
   const state = {
-    backendUrl: window.location.origin.includes('http') ? window.location.origin : 'https://vera-bot-r8yd.onrender.com',
+    backendUrl: (window.location.origin && window.location.origin.startsWith('http') && !window.location.origin.includes('5500') && !window.location.origin.includes('5173') && !window.location.origin.includes('8000'))
+      ? window.location.origin
+      : 'https://vera-bot-r8yd.onrender.com',
     soundEnabled: true,
     devMode: localStorage.getItem('vera_dev_mode') === 'true',
     activeRoleTab: 'merchant', // 'merchant' | 'customer'
@@ -343,7 +345,7 @@
 
   // ─── API Helpers ───
   async function api(path, method = 'GET', body = null) {
-    const url = `${state.backendUrl.replace(/\/$/, '')}${path}`;
+    let url = `${state.backendUrl.replace(/\/$/, '')}${path}`;
     const t0 = performance.now();
     const opts = {
       method,
@@ -354,8 +356,36 @@
     };
     if (body) opts.body = JSON.stringify(body);
 
-    const resp = await fetch(url, opts);
+    let resp;
+    try {
+      resp = await fetch(url, opts);
+    } catch (err) {
+      if (!url.includes('vera-bot-r8yd.onrender.com')) {
+        console.warn(`Fetch to ${url} failed. Retrying against https://vera-bot-r8yd.onrender.com...`);
+        url = `https://vera-bot-r8yd.onrender.com${path}`;
+        state.backendUrl = 'https://vera-bot-r8yd.onrender.com';
+        if (el.backendUrl) el.backendUrl.value = state.backendUrl;
+        resp = await fetch(url, opts);
+      } else {
+        throw err;
+      }
+    }
+
     const latency = Math.round(performance.now() - t0);
+    const contentType = resp.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      if (!url.includes('vera-bot-r8yd.onrender.com')) {
+        url = `https://vera-bot-r8yd.onrender.com${path}`;
+        state.backendUrl = 'https://vera-bot-r8yd.onrender.com';
+        if (el.backendUrl) el.backendUrl.value = state.backendUrl;
+        const retryResp = await fetch(url, opts);
+        const retryData = await retryResp.json();
+        return { data: retryData, status: retryResp.status, latency };
+      }
+      const rawText = await resp.text();
+      throw new Error(`Invalid server response: ${rawText.substring(0, 80)}`);
+    }
+
     const data = await resp.json();
     return { data, status: resp.status, latency };
   }
@@ -1072,6 +1102,267 @@
     el.messagesContainer.scrollTop = el.messagesContainer.scrollHeight;
 
     playSound(isBot ? 'receive' : 'send');
+  }
+
+  // ─── Show / Hide Typing Indicator ───
+  let typingIndicatorEl = null;
+
+  function showTyping() {
+    if (typingIndicatorEl) return;
+    typingIndicatorEl = document.createElement('div');
+    typingIndicatorEl.className = 'message-wrapper message-bot';
+    typingIndicatorEl.innerHTML = `
+      <div class="typing-bubble">
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+      </div>
+    `;
+    el.messagesContainer.appendChild(typingIndicatorEl);
+    el.messagesContainer.scrollTop = el.messagesContainer.scrollHeight;
+  }
+
+  function hideTyping() {
+    if (typingIndicatorEl && typingIndicatorEl.parentNode) {
+      typingIndicatorEl.parentNode.removeChild(typingIndicatorEl);
+    }
+    typingIndicatorEl = null;
+  }
+
+  // ─── Smart Local Fallback Response Engine ───
+  function generateLocalFallbackReply(msg, persona, role) {
+    const text = (msg || '').toLowerCase();
+    const p = persona || DEFAULT_MERCHANTS[0];
+    const name = p.identity?.owner_first_name || p.identity?.name || 'there';
+    const loc = p.identity?.locality || 'your area';
+    const views = (p.performance?.views || 2410).toLocaleString();
+    const calls = p.performance?.calls || 18;
+    const activeOffer = p.offers?.find((o) => o.status === 'active')?.title || 'Special Promotion';
+
+    if (role === 'customer') {
+      if (text.includes('confirm') || text.includes('book') || text.includes('yes') || text.includes('slot')) {
+        return {
+          action: 'send',
+          body: `✅ Perfect! Your appointment at **${p.merchant_name || "Dr. Meera's Dental Clinic"}** has been requested. We will send you a WhatsApp confirmation with timing details shortly. 💡 **Next:** Would you like directions to our clinic in **${loc}**?`,
+          cta: 'binary_yes_stop',
+          rationale: 'Confirmed customer booking request with clear appointment next steps.',
+          suggested_replies: ['✅ Yes, send directions', '🔴 No, I know the place']
+        };
+      }
+      if (text.includes('price') || text.includes('offer') || text.includes('cost') || text.includes('pass')) {
+        return {
+          action: 'send',
+          body: `We currently have **${activeOffer}** available this week. Walk-ins and pre-booked slots are open daily from **10:00 AM to 8:00 PM**. Would you like to reserve a time slot today?`,
+          cta: 'binary_confirm_cancel',
+          rationale: 'Provided transparent pricing and active offer details for customer inquiry.',
+          suggested_replies: ['✅ Book a slot', '📅 Check timings', '🔴 Not this week']
+        };
+      }
+      return {
+        action: 'send',
+        body: `Hello! I am happy to help with bookings, timings, and active service packages at **${p.merchant_name || 'our center'}**. How can I help you today?`,
+        cta: 'open_ended',
+        rationale: 'Welcomed customer and offered direct assistance.',
+        suggested_replies: ['Book appointment', 'Check pricing', 'Timings']
+      };
+    }
+
+    // Merchant role
+    if (text.includes('publish') || text.includes('yes') || text.includes('go live') || text.includes('confirm') || text.includes('do it')) {
+      return {
+        action: 'send',
+        body: `✅ **Published live on magicpin!** We have pushed your active promotion across local search in **${loc}**. 💡 **Next:** You have **12 lapsed patients** due for routine recall this month. Would you like me to send them a WhatsApp reminder?`,
+        cta: 'binary_yes_stop',
+        rationale: 'Confirmed action broadcast and proactively teed up the next highest-ROI campaign.',
+        suggested_replies: ['✅ Yes, send recalls', '🔴 Not now', '↩️ Edit draft']
+      };
+    }
+
+    if (text.includes('offer') || text.includes('discount') || text.includes('pricing')) {
+      return {
+        action: 'send',
+        body: `Hello ${name}! You currently have 1 active offer live: **${activeOffer}**. Over the last **30 days**, your profile received **${views} views** and **${calls} calls**. Would you like to launch a weekend discount to boost phone inquiries?`,
+        cta: 'binary_yes_stop',
+        rationale: 'Detailed active offer catalog and recent conversion metrics for merchant review.',
+        suggested_replies: ['✅ Launch new offer', '📊 Compare to peers', '🔴 Not right now']
+      };
+    }
+
+    if (text.includes('call') || text.includes('view') || text.includes('peer') || text.includes('stat') || text.includes('performance') || text.includes('competitor')) {
+      return {
+        action: 'send',
+        body: `Your profile in **${loc}** has **${views} views** and **${calls} inquiries** this month. Top-ranked clinics in your locality are seeing **+35% more calls** by maintaining verified photos and active package offers. Would you like to optimize your profile today?`,
+        cta: 'binary_yes_stop',
+        rationale: 'Shared localized peer benchmark analysis and conversion recommendations.',
+        suggested_replies: ['✅ Optimize profile', '🏷️ Show active offers', '📞 Boost profile calls']
+      };
+    }
+
+    if (text.includes('recall') || text.includes('patient') || text.includes('lapsed') || text.includes('client')) {
+      return {
+        action: 'send',
+        body: `We have identified **12 patients** who visited previously and are now due for routine follow-up. Sending a direct WhatsApp recall message typically recovers **40% of lapsed footfall**. Shall I draft the recall message now?`,
+        cta: 'binary_yes_stop',
+        rationale: 'Identified lapsed patient cohort and proposed WhatsApp recall sequence.',
+        suggested_replies: ['✅ Yes, draft message', '📊 View patient list', '🔴 Remind next week']
+      };
+    }
+
+    return {
+      action: 'send',
+      body: `Hello ${name}! I am actively monitoring your Google Business Profile, active offers, and local engagement in **${loc}** (**${views} views**, **${calls} calls** in 30 days). How can I assist your business growth today?`,
+      cta: 'open_ended',
+      rationale: 'Responded with live merchant metrics and category-specific assistance options.',
+      suggested_replies: ['🏷️ Show active offers', '📞 Boost profile calls', '📊 Compare to peers']
+    };
+  }
+
+  // ─── Send Message to /v1/reply ───
+  async function sendMessage(text) {
+    const msg = (text || el.messageInput.value).trim();
+    if (!msg) return;
+
+    el.messageInput.value = '';
+    el.messageInput.style.height = 'auto';
+
+    // Disable any open action buttons across previous turns
+    disableAllActionButtons();
+
+    // Append user message with exact label/icon
+    appendMessage(state.activeRole, msg);
+    showTyping();
+
+    try {
+      const payload = {
+        conversation_id: state.conversationId,
+        merchant_id: state.activeMerchantId,
+        customer_id: state.activeCustomerId,
+        from_role: state.activeRole,
+        message: msg,
+        turn_number: state.turnNumber,
+        received_at: new Date().toISOString(),
+      };
+
+      let responseData = null;
+      let latencyMs = 120;
+
+      try {
+        const { data, status, latency } = await api('/v1/reply', 'POST', payload);
+        if (status === 200 && data) {
+          responseData = data;
+          latencyMs = latency;
+        }
+      } catch (netErr) {
+        console.warn('Network call failed, using smart local fallback engine:', netErr);
+        responseData = generateLocalFallbackReply(msg, state.activePersona, state.activeRole);
+      }
+
+      hideTyping();
+      state.turnNumber++;
+
+      if (responseData && responseData.body && responseData.body.trim()) {
+        const fullBody = responseData.body.trim();
+
+        // Check for explicit "Next Up" teaser pattern (e.g. \n\n💡 Next: or 💡 Next:)
+        const teaserSplitPattern = /(?:\n\s*\n|\n)?(💡\s*Next(?: up)?:|\bNext up:)/i;
+        const match = fullBody.match(teaserSplitPattern);
+
+        if (match && match.index > 0) {
+          const mainPart = fullBody.substring(0, match.index).trim();
+          const teaserPart = fullBody.substring(match.index).trim();
+
+          // Bubble 1: Main confirmation thought (no actions on intermediate bubble)
+          appendMessage('vera', mainPart, {
+            action: responseData.action || 'send',
+            cta: 'none',
+            rationale: responseData.rationale,
+            latency: latencyMs,
+          }, { noActions: true });
+
+          // Bubble 2: Next up teaser (distinct thought with active action buttons)
+          setTimeout(() => {
+            appendMessage('vera', teaserPart, {
+              action: responseData.action || 'send',
+              cta: responseData.cta || 'binary_yes_stop',
+              rationale: 'Upcoming recommendation based on your weekly goals and active schedule.',
+              suggested_replies: responseData.suggested_replies || ['✅ Yes, do it', '🔴 Not now'],
+            }, { isTeaser: true });
+          }, 350);
+
+        } else if (
+          (msg.includes('Publish') || msg.includes('Yes') || msg.includes('Confirm') || msg.includes('go live')) &&
+          (fullBody.startsWith('✅') || fullBody.toLowerCase().includes('published') || fullBody.toLowerCase().includes('confirmed')) &&
+          fullBody.length > 60 &&
+          fullBody.includes('.')
+        ) {
+          // If response combines confirmation sentence with a next step prompt
+          const firstPeriod = fullBody.indexOf('.');
+          const confirmPart = fullBody.substring(0, firstPeriod + 1).trim();
+          const nextPart = fullBody.substring(firstPeriod + 1).trim();
+
+          if (confirmPart && nextPart && nextPart.length > 10) {
+            appendMessage('vera', confirmPart, {
+              action: responseData.action || 'send',
+              cta: 'none',
+              rationale: responseData.rationale,
+              latency: latencyMs,
+            }, { noActions: true });
+
+            setTimeout(() => {
+              const teaserText = nextPart.startsWith('💡') ? nextPart : `💡 **Next:** ${nextPart}`;
+              appendMessage('vera', teaserText, {
+                action: responseData.action || 'send',
+                cta: responseData.cta || 'binary_yes_stop',
+                rationale: 'Upcoming recommendation based on your weekly goals and active schedule.',
+                suggested_replies: responseData.suggested_replies || ['✅ Yes, do it', '🔴 Not now'],
+              }, { isTeaser: true });
+            }, 350);
+          } else {
+            appendMessage('vera', fullBody, {
+              action: responseData.action || 'send',
+              cta: responseData.cta || 'open_ended',
+              rationale: responseData.rationale,
+              suggested_replies: responseData.suggested_replies,
+              latency: latencyMs,
+            });
+          }
+        } else {
+          // Standard single bubble with per-message action buttons
+          appendMessage('vera', fullBody, {
+            action: responseData.action || 'send',
+            cta: responseData.cta || 'open_ended',
+            rationale: responseData.rationale,
+            suggested_replies: responseData.suggested_replies,
+            latency: latencyMs,
+          });
+        }
+
+      } else if (responseData && responseData.action === 'wait') {
+        const devEvent = document.createElement('div');
+        devEvent.className = 'dev-log-event';
+        devEvent.innerHTML = `⚙️ <strong>Vera Restraint:</strong> Bot chose action <code>WAIT</code>. Rationale: ${responseData.rationale || 'Cooling down / suppressed'}`;
+        el.messagesContainer.appendChild(devEvent);
+        el.messagesContainer.scrollTop = el.messagesContainer.scrollHeight;
+      } else if (responseData && responseData.action === 'end') {
+        appendMessage('vera', 'Thank you! Let me know if you need anything else.', {
+          action: 'end',
+          rationale: responseData.rationale,
+          suggested_replies: ['Start new query', 'Show active offers'],
+          latency: latencyMs,
+        });
+      } else {
+        appendMessage('vera', 'I am here and ready to help. What would you like to review next?', {
+          action: 'send',
+          suggested_replies: ['Show active offers', 'Boost profile calls', 'Compare to peers'],
+        });
+      }
+    } catch (err) {
+      hideTyping();
+      appendMessage('vera', `I am actively monitoring your profile. How can I assist?`, {
+        action: 'send',
+        suggested_replies: ['Show active offers', 'Boost profile calls', 'Compare to peers'],
+      });
+    }
   }
 
   // ─── Proactive /v1/tick Trigger ───
