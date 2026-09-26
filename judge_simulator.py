@@ -16,75 +16,38 @@ That's it!
 Author: magicpin AI Challenge Team
 """
 
+import os
+import sys
+
 # =============================================================================
 # ██████  CONFIGURATION - EDIT THIS SECTION ██████
 # =============================================================================
 
 # Your bot's URL (where your bot is running)
-BOT_URL = "https://vera-bot-r8yd.onrender.com"
+BOT_URL = os.environ.get("BOT_URL", "https://vera-bot-r8yd.onrender.com/")
 
-# ── LLM settings for the JUDGE (reads from project .env automatically) ──
-# You do NOT need to paste your key here — it is loaded from d:\magic-pin\.env
-# If you want to override for the judge specifically, set values below (leave "" to use .env)
-LLM_PROVIDER = ""   # leave "" → read from .env
-LLM_API_KEY   = ""  # leave "" → read from .env  (NEVER hardcode here)
-LLM_MODEL     = ""  # leave "" → read from .env
+# Choose your LLM provider: "openai", "anthropic", "gemini", "deepseek", "groq", "ollama", "openrouter"
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "gemini")
 
-# For Ollama only: local server URL
-OLLAMA_URL = "http://localhost:11434"
+# Your API key (paste your key here or set via environment variable)
+LLM_API_KEY = os.environ.get("GEMINI_API_KEY", os.environ.get("LLM_API_KEY", ""))  # <-- PUT YOUR API KEY HERE OR SET ENV
 
-# Which test to run: "warmup" | "phase2_short" | "auto_reply_hell" | "intent_transition" | "hostile" | "full_evaluation" | "all"
-TEST_SCENARIO = "all"
+# Model to use (leave empty for default, or specify like "gpt-4o", "claude-3-5-sonnet-20241022", etc.)
+LLM_MODEL = os.environ.get("LLM_MODEL", "gemini-flash-lite-latest")  # <-- Optional: specify model or leave empty for default
+
+
+
+# Which test to run by default
+TEST_SCENARIO = os.environ.get("TEST_SCENARIO", "full_evaluation")
 
 # =============================================================================
 # ██████  END OF CONFIGURATION - DON'T EDIT BELOW THIS LINE ██████
 # =============================================================================
-
-# Auto-load from .env file if fields above are left empty
-import os as _os
-from pathlib import Path as _Path
-
-def _load_env_file():
-    """Load key=value pairs from the project root .env file."""
-    env_path = _Path(__file__).parent / ".env"
-    if not env_path.exists():
-        return {}
-    result = {}
-    for line in env_path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        k, _, v = line.partition("=")
-        val = v.strip().strip("'\"")
-        result[k.strip()] = val
-    return result
-
-_env = _load_env_file()
-
-# Apply .env values only where the manual override above is empty
-if not LLM_PROVIDER:
-    LLM_PROVIDER = _env.get("LLM_PROVIDER", "gemini").strip().strip("'\"").lower()
-if not LLM_API_KEY:
-    LLM_API_KEY = _env.get("LLM_API_KEY", "").strip().strip("'\"")
-if not LLM_MODEL:
-    LLM_MODEL = _env.get("LLM_MODEL", "").strip().strip("'\"")
-
-import os
-import sys
-
-# Configure UTF-8 for Windows console
-if sys.platform == "win32":
-    try:
-        sys.stdout.reconfigure(encoding="utf-8")
-        sys.stderr.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
-
 import json
 import time
 import re
 import socket
-from datetime import datetime, timezone
+from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any, Tuple
 from pathlib import Path
@@ -138,10 +101,7 @@ def print_score_bar(dimension: str, score: int, max_score: int = 10):
     bar_filled = int((score / max_score) * 20)
     bar_empty = 20 - bar_filled
     color = Colors.GREEN if score >= 7 else Colors.YELLOW if score >= 4 else Colors.RED
-    try:
-        print(f"  {dimension:22} [{color}{'█' * bar_filled}{Colors.DIM}{'░' * bar_empty}{Colors.RESET}] {color}{score:2}/{max_score}{Colors.RESET}")
-    except UnicodeEncodeError:
-        print(f"  {dimension:22} [{color}{'#' * bar_filled}{Colors.DIM}{'-' * bar_empty}{Colors.RESET}] {color}{score:2}/{max_score}{Colors.RESET}")
+    print(f"  {dimension:22} [{color}{'█' * bar_filled}{Colors.DIM}{'░' * bar_empty}{Colors.RESET}] {color}{score:2}/{max_score}{Colors.RESET}")
 
 def print_reason(text: str):
     wrapped = text[:200] + "..." if len(text) > 200 else text
@@ -248,7 +208,7 @@ class AnthropicProvider(LLMProvider):
 class GeminiProvider(LLMProvider):
     def __init__(self, api_key: str, model: str = ""):
         self.api_key = api_key
-        self.model = model or "gemini-flash-lite-latest"
+        self.model = model or "gemini-1.5-flash"
 
     def name(self) -> str:
         return f"Gemini ({self.model})"
@@ -260,24 +220,11 @@ class GeminiProvider(LLMProvider):
             "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1500}
         }).encode("utf-8")
 
-        candidate_models = [self.model, "gemini-flash-lite-latest", "gemini-3.1-flash-lite", "gemini-3.5-flash-lite"]
-        seen = set()
-        models_to_try = [m for m in candidate_models if not (m in seen or seen.add(m))]
-
-        last_err = None
-        for m in models_to_try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={self.api_key}"
-            req = urlrequest.Request(url, data=body, headers={"Content-Type": "application/json"})
-            for attempt in range(2):
-                try:
-                    resp = urlrequest.urlopen(req, timeout=TIMEOUT_LLM)
-                    data = json.loads(resp.read().decode("utf-8"))
-                    self.model = m
-                    return data["candidates"][0]["content"]["parts"][0]["text"]
-                except Exception as e:
-                    last_err = e
-                    time.sleep(1.0)
-        raise last_err
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.api_key}"
+        req = urlrequest.Request(url, data=body, headers={"Content-Type": "application/json"})
+        resp = urlrequest.urlopen(req, timeout=TIMEOUT_LLM)
+        data = json.loads(resp.read().decode("utf-8"))
+        return data["candidates"][0]["content"]["parts"][0]["text"]
 
 
 class DeepSeekProvider(LLMProvider):
@@ -389,13 +336,12 @@ def create_provider() -> LLMProvider:
         "openrouter": lambda: OpenRouterProvider(LLM_API_KEY, LLM_MODEL),
     }
 
-    prov = LLM_PROVIDER.strip().strip("'\"").lower()
-    if prov not in providers:
-        print_fail(f"Unknown provider: {prov}")
+    if LLM_PROVIDER not in providers:
+        print_fail(f"Unknown provider: {LLM_PROVIDER}")
         print_info(f"Available: {', '.join(providers.keys())}")
         sys.exit(1)
 
-    return providers[prov]()
+    return providers[LLM_PROVIDER]()
 
 # =============================================================================
 # DATASET & BOT CLIENT
@@ -471,19 +417,19 @@ class BotClient:
     def push_context(self, scope, cid, version, payload):
         return self._request("POST", "/v1/context", 10, {
             "scope": scope, "context_id": cid, "version": version,
-            "payload": payload, "delivered_at": datetime.now(timezone.utc).isoformat()
+            "payload": payload, "delivered_at": datetime.utcnow().isoformat() + "Z"
         })
 
     def tick(self, triggers):
         return self._request("POST", "/v1/tick", 15, {
-            "now": datetime.now(timezone.utc).isoformat(), "available_triggers": triggers
+            "now": datetime.utcnow().isoformat() + "Z", "available_triggers": triggers
         })
 
     def reply(self, conv_id, merchant_id, message, turn):
         return self._request("POST", "/v1/reply", 15, {
             "conversation_id": conv_id, "merchant_id": merchant_id, "customer_id": None,
             "from_role": "merchant", "message": message,
-            "received_at": datetime.now(timezone.utc).isoformat(), "turn_number": turn
+            "received_at": datetime.utcnow().isoformat() + "Z", "turn_number": turn
         })
 
 # =============================================================================
@@ -976,10 +922,10 @@ def main():
     print_header("magicpin AI Challenge — LLM Judge")
 
     # Validate configuration
-    if LLM_PROVIDER != "ollama" and (not LLM_API_KEY or LLM_API_KEY == "your-api-key-here"):
-        print_fail("LLM_API_KEY is not set or still has the placeholder in .env!")
-        print_info("Make sure you saved your API key in d:\\magic-pin\\.env (Ctrl + S)")
-        print_info("And ensure LLM_PROVIDER matches your key (openai, gemini, anthropic, groq, etc.)")
+    if LLM_PROVIDER != "ollama" and not LLM_API_KEY:
+        print_fail("LLM_API_KEY is not set!")
+        print_info("Edit the CONFIGURATION section at the top of this file")
+        print_info("Set your API key for your chosen provider")
         sys.exit(1)
 
     # Create LLM provider
