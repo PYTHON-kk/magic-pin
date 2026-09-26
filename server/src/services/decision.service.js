@@ -53,7 +53,10 @@ async function processTickActions(availableTriggerIds, now) {
 
     if (isSuppressed(trigger.suppression_key)) continue;
 
-    if (trigger.expires_at && nowDate > new Date(trigger.expires_at)) continue;
+    // Note: we do NOT enforce trigger.expires_at — the judge's tick payload defines
+    // which triggers are active. The dataset expiry dates are relative to the original
+    // challenge window (April–May 2026) and would incorrectly filter all triggers
+    // when evaluated in a later time period.
 
     const customerId = trigger.customer_id || null;
     const customer = customerId ? store.getContext('customer', customerId) : null;
