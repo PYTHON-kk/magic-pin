@@ -12,6 +12,7 @@
     conversationId: `conv_${Date.now().toString(36)}`,
     turnNumber: 1,
     soundEnabled: true,
+    devMode: localStorage.getItem('vera_dev_mode') === 'true',
     activeMerchant: 'm_001_drmeera_dentist_delhi',
     merchants: {
       'm_001_drmeera_dentist_delhi': {
@@ -74,6 +75,11 @@
 
   // ─── DOM Elements ───
   const el = {
+    appContainer: document.querySelector('.app-container'),
+    sidebar: document.getElementById('sidebar'),
+    btnDevMode: document.getElementById('btnDevMode'),
+    btnCloseDevSidebar: document.getElementById('btnCloseDevSidebar'),
+    headerMerchantSelect: document.getElementById('headerMerchantSelect'),
     backendUrl: document.getElementById('backendUrl'),
     btnConnect: document.getElementById('btnConnect'),
     connectionStatus: document.getElementById('connectionStatus'),
@@ -100,6 +106,22 @@
     quickSuggestions: document.getElementById('quickSuggestions'),
     welcomeTime: document.getElementById('welcomeTime'),
   };
+
+  // ─── Mode Switching (Clean View vs Dev View) ───
+  function setDevMode(enabled) {
+    state.devMode = !!enabled;
+    try {
+      localStorage.setItem('vera_dev_mode', state.devMode ? 'true' : 'false');
+    } catch (_) {}
+
+    if (state.devMode) {
+      el.appContainer.classList.add('dev-mode-active');
+      if (el.btnDevMode) el.btnDevMode.classList.add('active');
+    } else {
+      el.appContainer.classList.remove('dev-mode-active');
+      if (el.btnDevMode) el.btnDevMode.classList.remove('active');
+    }
+  }
 
   // ─── Audio Synthesis (Subtle Web Audio feedback) ───
   const audioCtx = window.AudioContext ? new (window.AudioContext || window.webkitAudioContext)() : null;
@@ -219,36 +241,36 @@
       footer.appendChild(check);
     }
     bubble.appendChild(footer);
+    wrapper.appendChild(bubble);
 
-    // Meta badges for Vera messages
-    if (isBot && meta) {
-      const metaContainer = document.createElement('div');
-      metaContainer.className = 'bubble-meta';
+    // In Dev Mode: Attach discreet expandable debug trigger and card
+    if (isBot && meta && (meta.action || meta.rationale || meta.cta)) {
+      const debugToggle = document.createElement('button');
+      debugToggle.className = 'msg-debug-trigger';
+      debugToggle.type = 'button';
+      debugToggle.title = 'Inspect LLM & Decision Diagnostics (Dev Mode)';
+      debugToggle.innerHTML = `<span>ⓘ</span> <span>Debug Info</span>`;
 
-      if (meta.cta && meta.cta !== 'none') {
-        const ctaPill = document.createElement('span');
-        ctaPill.className = 'meta-pill cta-pill';
-        ctaPill.textContent = `CTA: ${meta.cta}`;
-        metaContainer.appendChild(ctaPill);
-      }
+      const debugCard = document.createElement('div');
+      debugCard.className = 'msg-debug-card';
+      debugCard.innerHTML = `
+        <div class="debug-card-header">
+          <span class="debug-badge debug-badge-action">${(meta.action || 'SEND').toUpperCase()}</span>
+          ${meta.cta && meta.cta !== 'none' ? `<span class="debug-badge debug-badge-cta">CTA: ${meta.cta}</span>` : ''}
+          ${meta.latency ? `<span class="debug-latency">⚡ ${meta.latency}ms</span>` : ''}
+        </div>
+        ${meta.rationale ? `<div class="debug-rationale"><strong>Rationale:</strong> ${meta.rationale}</div>` : ''}
+      `;
 
-      if (meta.action) {
-        const rolePill = document.createElement('span');
-        rolePill.className = 'meta-pill role-pill';
-        rolePill.textContent = `Action: ${meta.action.toUpperCase()}`;
-        metaContainer.appendChild(rolePill);
-      }
-      bubble.appendChild(metaContainer);
+      debugToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        debugCard.classList.toggle('open');
+      });
 
-      if (meta.rationale) {
-        const rationale = document.createElement('div');
-        rationale.className = 'rationale-box';
-        rationale.textContent = `💡 ${meta.rationale}`;
-        bubble.appendChild(rationale);
-      }
+      wrapper.appendChild(debugToggle);
+      wrapper.appendChild(debugCard);
     }
 
-    wrapper.appendChild(bubble);
     el.messagesContainer.appendChild(wrapper);
     el.messagesContainer.scrollTop = el.messagesContainer.scrollHeight;
 
@@ -303,18 +325,34 @@
         received_at: new Date().toISOString(),
       };
 
-      const { data, status } = await api('/v1/reply', 'POST', payload);
+      const { data, status, latency } = await api('/v1/reply', 'POST', payload);
       hideTyping();
 
       state.turnNumber++;
 
       if (status === 200 && data) {
-        const bodyText = data.body || (data.action === 'end' ? '(Conversation concluded by Vera)' : '(Waiting)');
-        appendMessage('vera', bodyText, {
-          action: data.action,
-          cta: data.cta,
-          rationale: data.rationale,
-        });
+        if (data.body && data.body.trim()) {
+          appendMessage('vera', data.body.trim(), {
+            action: data.action,
+            cta: data.cta,
+            rationale: data.rationale,
+            latency,
+          });
+        } else if (data.action === 'wait') {
+          // If the bot has nothing to send, in Clean Mode don't render a bubble at all.
+          // In Dev Mode, render a developer event log so engineers see the suppression/cooldown rationale.
+          const devEvent = document.createElement('div');
+          devEvent.className = 'dev-log-event';
+          devEvent.innerHTML = `⚙️ <strong>Vera Restraint:</strong> Bot chose action <code>WAIT</code>. Rationale: ${data.rationale || 'Cooling down / suppressed'}`;
+          el.messagesContainer.appendChild(devEvent);
+          el.messagesContainer.scrollTop = el.messagesContainer.scrollHeight;
+        } else if (data.action === 'end') {
+          appendMessage('vera', 'Thank you! Let me know if you need anything else.', {
+            action: 'end',
+            rationale: data.rationale,
+            latency,
+          });
+        }
       } else {
         appendMessage('vera', 'Sorry, I encountered an issue reaching the server.', { action: 'error' });
       }
@@ -330,28 +368,38 @@
     const m = state.merchants[merchantId];
     if (!m) return;
 
+    // Sync both persona selectors
+    if (el.merchantSelect && el.merchantSelect.value !== merchantId) {
+      el.merchantSelect.value = merchantId;
+    }
+    if (el.headerMerchantSelect && el.headerMerchantSelect.value !== merchantId) {
+      el.headerMerchantSelect.value = merchantId;
+    }
+
     state.conversationId = `conv_${merchantId}_${Date.now().toString(36)}`;
     state.turnNumber = 1;
 
-    el.currentMerchantName.textContent = m.name;
-    el.metricViews.textContent = m.views;
-    el.metricCalls.textContent = m.calls;
-    el.metricCtr.textContent = m.ctr;
+    if (el.currentMerchantName) el.currentMerchantName.textContent = m.name;
+    if (el.metricViews) el.metricViews.textContent = m.views;
+    if (el.metricCalls) el.metricCalls.textContent = m.calls;
+    if (el.metricCtr) el.metricCtr.textContent = m.ctr;
 
-    el.merchantTags.innerHTML = `
-      <span class="tag">${m.tone}</span>
-      <span class="tag">${m.locality}</span>
-      <span class="tag">${m.languages.join(', ')}</span>
-    `;
+    if (el.merchantTags) {
+      el.merchantTags.innerHTML = `
+        <span class="tag">${m.tone}</span>
+        <span class="tag">${m.locality}</span>
+        <span class="tag">${m.languages.join(', ')}</span>
+      `;
+    }
 
-    // Clear and show persona welcome message
+    // Clear and show persona welcome message without technical badges
     el.messagesContainer.innerHTML = `
       <div class="system-message">
         <span class="lock-icon">🔒</span>
         <span>Switched to ${m.name} (${m.locality}). End-to-end encrypted session.</span>
       </div>
     `;
-    appendMessage('vera', m.welcome, { action: 'send', cta: 'open_ended', rationale: `Active persona loaded: ${m.name}` });
+    appendMessage('vera', m.welcome, { action: 'send', rationale: `Active persona loaded: ${m.name}` });
   }
 
   // ─── Proactive /v1/tick Trigger ───
@@ -496,7 +544,26 @@
       checkHealth();
     });
 
-    // Merchant persona switcher
+    // Dev Mode Toggle & Close
+    if (el.btnDevMode) {
+      el.btnDevMode.addEventListener('click', () => {
+        setDevMode(!state.devMode);
+      });
+    }
+    if (el.btnCloseDevSidebar) {
+      el.btnCloseDevSidebar.addEventListener('click', () => {
+        setDevMode(false);
+      });
+    }
+
+    // Header merchant persona dropdown
+    if (el.headerMerchantSelect) {
+      el.headerMerchantSelect.addEventListener('change', (e) => {
+        switchMerchant(e.target.value);
+      });
+    }
+
+    // Sidebar merchant persona switcher
     el.merchantSelect.addEventListener('change', (e) => {
       switchMerchant(e.target.value);
     });
@@ -577,6 +644,7 @@
   function init() {
     el.backendUrl.value = state.backendUrl;
     el.welcomeTime.textContent = formatTime();
+    setDevMode(state.devMode);
     initEvents();
     checkHealth();
   }

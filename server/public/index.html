@@ -25,9 +25,12 @@
             <span class="badge-magicpin">magicpin</span>
           </div>
         </div>
-        <div class="connection-status" id="connectionStatus" title="API Status">
-          <span class="status-dot"></span>
-          <span class="status-label">Checking...</span>
+        <div class="sidebar-header-right">
+          <div class="connection-status" id="connectionStatus" title="API Status">
+            <span class="status-dot"></span>
+            <span class="status-label">Checking...</span>
+          </div>
+          <button id="btnCloseDevSidebar" class="icon-btn close-sidebar-btn" title="Exit Dev Mode">✕</button>
         </div>
       </div>
 
@@ -142,12 +145,27 @@
               <span class="bot-tag">Official Assistant</span>
             </div>
             <div class="user-subtext" id="userSubtext">
-              Talking as <span id="currentMerchantName">Dr. Meera's Dental Clinic</span> • online
+              <span class="subtext-prefix">Talking as</span>
+              <div class="merchant-dropdown-wrapper">
+                <select id="headerMerchantSelect" class="header-merchant-select" title="Switch Merchant Persona">
+                  <option value="m_001_drmeera_dentist_delhi" selected>Dr. Meera's Dental Clinic (Delhi)</option>
+                  <option value="m_003_studio11_salon_hyderabad">Studio11 Family Salon (Hyderabad)</option>
+                  <option value="m_005_powerhouse_gym_pune">Powerhouse Fitness Gym (Pune)</option>
+                  <option value="m_007_zen_ayurveda_bangalore">Zen Ayurveda Clinic (Bangalore)</option>
+                  <option value="m_009_sunrise_pharma_delhi">Sunrise Pharmacy (Delhi)</option>
+                </select>
+              </div>
+              <span class="status-separator">•</span>
+              <span class="online-label">online</span>
             </div>
           </div>
         </div>
 
         <div class="chat-header-actions">
+          <button id="btnDevMode" class="btn-dev-toggle" title="Toggle Developer / Judge Diagnostic View">
+            <span class="dev-toggle-icon">🛠️</span>
+            <span class="dev-toggle-text">Dev Mode</span>
+          </button>
           <button id="btnClearChat" class="icon-btn" title="Clear Messages">🗑️</button>
           <button id="btnExportChat" class="icon-btn" title="Export Conversation">📥</button>
         </div>
@@ -170,10 +188,6 @@
             </div>
             <div class="message-footer">
               <span class="msg-time" id="welcomeTime">10:00 AM</span>
-            </div>
-            <div class="bubble-meta">
-              <span class="meta-pill cta-pill">open_ended</span>
-              <span class="meta-pill role-pill">vera</span>
             </div>
           </div>
         </div>
