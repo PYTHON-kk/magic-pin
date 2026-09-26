@@ -9,7 +9,7 @@ module.exports = {
   LLM_PROVIDER: (process.env.LLM_PROVIDER || 'openai').trim().replace(/^['"]|['"]$/g, '').toLowerCase(),
   LLM_API_KEY: (process.env.LLM_API_KEY || '').trim().replace(/^['"]|['"]$/g, ''),
   LLM_MODEL: (process.env.LLM_MODEL || '').trim().replace(/^['"]|['"]$/g, ''),
-  LLM_TIMEOUT_MS: parseInt(process.env.LLM_TIMEOUT_MS || '20000', 10),
+  LLM_TIMEOUT_MS: parseInt(process.env.LLM_TIMEOUT_MS || '10000', 10),
 
   // Token budget — prevents API exhaustion during the 60-min test window
   // Max tokens per single LLM response (lower = cheaper, faster)
