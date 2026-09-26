@@ -48,6 +48,7 @@ SCORING MATRIX HARD RULES (MUST SCORE 10/10 ACROSS ALL 5 DIMENSIONS):
      * Real offer titles and exact prices with ₹ from merchant context (e.g., "Dental Cleaning @ ₹299")
      * Source citations when research/digest is present (e.g., "JIDA Oct 2026 p.14", "2,100-patient trial")
    - NEVER invent or hallucinate facts, numbers, competitors, or offers not in CONTEXT.
+   - NEVER paraphrase metrics — use the exact numbers given (e.g., if views=4980, write "4,980 views", not "nearly 5,000").
 
 4. CATEGORY FIT & VOICE:
    - Voice Tone: ${voiceTone}.
@@ -63,6 +64,8 @@ SCORING MATRIX HARD RULES (MUST SCORE 10/10 ACROSS ALL 5 DIMENSIONS):
 5. MERCHANT FIT:
    - Address the merchant owner by first name ("${ownerName || 'there'}").
    - Tie advice to their real performance data (views, calls, CTR) and exact active offers in their catalog.
+   - Only use facts that exist in the provided context. If a metric is not given, do NOT invent it.
+   - Use the merchant's exact view count, call count, and active offer titles verbatim from the CONTEXT.
 
 6. ENGAGEMENT COMPULSION & SINGLE CTA:
    - Give ONE compelling reason to reply now (loss aversion, social proof, urgency, or reciprocity).
@@ -188,6 +191,36 @@ function buildPerformancePrompt({ category, merchant, trigger, customer }) {
 
 // 3. Customer recall / engagement family
 function buildCustomerRecallPrompt({ category, merchant, trigger, customer }) {
+  const activeOffers = merchant.offers?.filter((o) => o.status === 'active') || [];
+  const offerList = activeOffers.map((o) => o.title).join(', ') || 'current services';
+
+  // Special handling for bridal/wedding followup — highest-stakes customer message
+  const isBridal = trigger.kind === 'wedding_package_followup';
+  const bridalInstruction = isBridal ? `Draft this CUSTOMER-FACING bridal follow-up message in English on behalf of ${merchant.identity?.name || 'the salon'}.
+
+CRITICAL FACTS TO USE VERBATIM (do not paraphrase or round numbers):
+- Customer name: ${customer?.identity?.name || 'the bride'}
+- Wedding date from trigger: ${trigger.payload?.wedding_date || 'upcoming'}
+- Days to wedding from trigger: ${trigger.payload?.days_to_wedding || 'soon'} days
+- Trial completed: ${trigger.payload?.trial_completed || 'recently'}
+- Next step window open: ${trigger.payload?.next_step_window_open || 'skin prep program'}
+- Customer's preferred slot: ${customer?.preferences?.preferred_slots || 'Saturday'}
+- Merchant active offers: ${offerList}
+- Merchant performance: ${merchant.performance?.views || '?'} views, ${merchant.performance?.calls || '?'} calls this month
+- Merchant review highlight: ${merchant.review_themes?.[0]?.common_quote || ''}
+
+INSTRUCTIONS:
+1. Open with the wedding date urgency: "With your wedding on ${trigger.payload?.wedding_date || 'the date'}, you have exactly ${trigger.payload?.days_to_wedding || '?'} days — time to start your skin prep."
+2. Reference the trial she already completed on ${trigger.payload?.trial_completed || 'her trial date'} and name the next step (${trigger.payload?.next_step_window_open || 'skin prep program'}) concretely.
+3. Mention her preferred slot (${customer?.preferences?.preferred_slots || 'Saturday'}) and the active offer from catalog (${activeOffers[0]?.title || 'our bridal package'}).
+4. Close with ONE low-friction binary CTA: "Want to lock in your Saturday skin prep slot? Reply YES and I will confirm it today."` : `Draft this CUSTOMER-FACING message in English on behalf of ${merchant.identity?.name}.
+1. Greet customer by name with vertical warmth ("Hi ${customer?.identity?.name || 'there'}, ${merchant.identity?.name} here").
+2. Reference their visit interval and service history from trigger_data (e.g., "It has been 5 months since your last visit — your 6-month recall is due").
+3. Provide 2 specific available slot times from trigger_data if available.
+4. Quote exact active offer and pricing from catalog: ${offerList}.
+5. Use the merchant's exact views (${merchant.performance?.views || '?'}) and calls (${merchant.performance?.calls || '?'}) metrics if relevant for social proof.
+6. End with ONE clear, low-friction choice CTA: "Reply 1 for Wed, 2 for Thu, or reply with a time that suits you best."`;
+
   return {
     system: buildSystemPrompt(category, merchant, customer),
     user: JSON.stringify({
@@ -196,20 +229,22 @@ function buildCustomerRecallPrompt({ category, merchant, trigger, customer }) {
       trigger_data: trigger.payload,
       merchant: merchantSummary(merchant),
       customer: customerSummary(customer),
-      merchant_offers: merchant.offers?.filter((o) => o.status === 'active'),
+      merchant_offers: activeOffers,
       category_slug: category.slug,
-      instruction: `Draft this CUSTOMER-FACING message in English on behalf of ${merchant.identity?.name}.
-1. Greet customer by name with vertical warmth (e.g. "Hi ${customer?.identity?.name || 'there'}, ${merchant.identity?.name} here").
-2. Reference their visit interval and service history (e.g., "It has been 5 months since your last visit — your 6-month cleaning recall is due").
-3. Provide 2 specific available slot times from trigger_data if available (e.g., "Wed 5 Nov, 6:00 PM or Thu 6 Nov, 5:00 PM").
-4. Quote exact active offer and pricing from catalog (e.g., "${merchant.offers?.[0]?.title || '₹299 cleaning + complimentary checkup'}").
-5. End with ONE clear, low-friction choice CTA: "Reply 1 for Wed, 2 for Thu, or reply with a time that suits you best."`,
+      instruction: bridalInstruction,
     }),
   };
 }
 
 // 4. Engagement / dormancy family
 function buildEngagementPrompt({ category, merchant, trigger, customer }) {
+  const views = merchant.performance?.views;
+  const calls = merchant.performance?.calls;
+  const peerMedianViews = category.peer_stats?.views_p50;
+  const activeOffers = merchant.offers?.filter((o) => o.status === 'active') || [];
+  const offerTitle = activeOffers[0]?.title || 'your active service';
+  const daysDormant = trigger.payload?.days_since_last_merchant_message || trigger.payload?.days_since_expiry;
+
   return {
     system: buildSystemPrompt(category, merchant, customer),
     user: JSON.stringify({
@@ -222,26 +257,39 @@ function buildEngagementPrompt({ category, merchant, trigger, customer }) {
       category_slug: category.slug,
       instruction: trigger.kind === 'curious_ask_due'
         ? `Ask the merchant a genuine, category-relevant question in English that invites effortless knowledge sharing.
-1. Reference their specific category and locality.
+1. Reference their specific category (${category.slug}) and locality (${merchant.identity?.locality || 'their area'}).
 2. Ask what service or request has been most in-demand this week.
-3. Offer reciprocity up front ("I will turn your answer into a Google post + WhatsApp quick reply you can use. Takes 2 minutes.").
-4. Single question CTA: "What service has been most asked-for at your business this week?"`
+3. Offer reciprocity up front: "I will turn your answer into a Google post + WhatsApp quick reply — takes 2 minutes."
+4. Single question CTA: "What service has been most asked-for this week?"`
         : trigger.kind === 'active_planning_intent'
         ? `The merchant expressed planning intent. You are in ACTION MODE — do NOT ask qualifying questions!
-1. Present a CONCRETE, structured plan with tiered pricing, delivery radius, and timings.
-2. Ground in their specific locality and category.
+1. Present a CONCRETE, structured plan with tiered pricing, delivery radius, and timings specific to ${merchant.identity?.locality || 'their locality'}.
+2. Ground in their specific category (${category.slug}) context and merchant metrics (${views ? views + ' views' : ''}, ${calls ? calls + ' calls' : ''} this month).
 3. Close with ONE action question: "Want me to draft the outreach message for this now?"`
         : `Re-engage this dormant merchant with curiosity or reciprocity in English.
-1. Share a specific local trend or peer benchmark stat.
-2. Offer a concrete 5-minute action that delivers immediate value.
-3. No guilt or blame for inactivity.
-4. Single low-friction CTA.`,
+CRITICAL FACTS TO USE VERBATIM:
+- Merchant: ${merchant.identity?.name}, ${merchant.identity?.locality}
+- Days since last contact: ${daysDormant || '?'}
+- Current performance: ${views ? views + ' profile views' : 'recent views'}, ${calls ? calls + ' calls' : ''} this month
+- Peer median views: ${peerMedianViews || 'peer benchmark'}
+- Active offer: ${offerTitle}
+- Last topic: ${trigger.payload?.last_topic || 'their subscription'}
+INSTRUCTIONS:
+1. Open with a SPECIFIC local trend or benchmark: e.g. "${category.slug} merchants in ${merchant.identity?.city || 'your city'} with active profiles are seeing ${peerMedianViews ? peerMedianViews + ' views' : 'peer-median views'} this month — you are at ${views || '?'}."
+2. Reference their last topic (${trigger.payload?.last_topic || 'subscription'}) naturally — no guilt.
+3. Offer a concrete, named 5-minute action tied to their active offer (${offerTitle}).
+4. Single low-friction CTA: "Want me to run a quick profile audit and push your active offer today? Takes 5 minutes."`,
     }),
   };
 }
 
 // 5. Event family (festival, IPL, weather, competitor, seasonal)
 function buildEventPrompt({ category, merchant, trigger, customer }) {
+  const activeOffers = merchant.offers?.filter((o) => o.status === 'active') || [];
+  const offerTitle = activeOffers[0]?.title || 'your active service';
+  const views = merchant.performance?.views;
+  const calls = merchant.performance?.calls;
+
   return {
     system: buildSystemPrompt(category, merchant, customer),
     user: JSON.stringify({
@@ -249,23 +297,46 @@ function buildEventPrompt({ category, merchant, trigger, customer }) {
       trigger_urgency: trigger.urgency,
       trigger_data: trigger.payload,
       merchant: merchantSummary(merchant),
-      merchant_offers: merchant.offers?.filter((o) => o.status === 'active'),
+      merchant_offers: activeOffers,
       category_slug: category.slug,
       category_seasonal_beats: category.seasonal_beats,
       instruction: trigger.kind === 'ipl_match_today'
         ? `An IPL match is happening in or near the merchant's city today.
-1. Mention specific match details (teams, stadium, match time from trigger_data).
-2. Provide operator nuance (e.g. Saturday matches shift dine-in covers -12% as people watch home — push delivery specials or active combos).
-3. Connect to their active offer if present.
-4. Close with ONE low-effort CTA: "Want me to draft a match-night delivery special story? Ready in 5 minutes."`
+CRITICAL FACTS TO USE VERBATIM:
+- Match: ${trigger.payload?.match || '?'}, Venue: ${trigger.payload?.venue || '?'}, Time: ${trigger.payload?.match_time_iso || '?'}
+- Merchant active offer: ${offerTitle}
+INSTRUCTIONS:
+1. Mention specific match: "${trigger.payload?.match || 'the IPL match'}" at ${trigger.payload?.venue || 'the stadium'} tonight.
+2. Operator nuance: Saturday matches shift dine-in covers -12% as fans watch from home — push delivery combos.
+3. Connect to active offer: ${offerTitle}.
+4. Close with ONE CTA: "Want me to draft a match-night delivery special? Ready in 5 minutes."`
         : trigger.kind === 'competitor_opened'
         ? `A competitor opened nearby.
-1. State the exact distance and competitor details from trigger_data without attacking them.
-2. Frame with curiosity and defensibility using the merchant's existing strengths or active offers.
-3. Close with ONE low-effort CTA: "Want me to review your active offer so your profile stays the top choice?"`
+CRITICAL FACTS TO USE VERBATIM:
+- Competitor: ${trigger.payload?.competitor_name || 'a new competitor'}, distance: ${trigger.payload?.distance_km || '?'} km
+- Their offer: ${trigger.payload?.their_offer || '?'}
+- Merchant's active offer: ${offerTitle}
+- Merchant views: ${views || '?'}, calls: ${calls || '?'}
+INSTRUCTIONS:
+1. State exact competitor details: "${trigger.payload?.competitor_name || 'a new competitor'} opened ${trigger.payload?.distance_km || '?'} km from you, offering ${trigger.payload?.their_offer || '?'}."
+2. Frame defensively using their strengths (review highlights, active offer, performance metrics: ${views || '?'} views, ${calls || '?'} calls) without attacking the competitor.
+3. Close with ONE CTA: "Want me to run a quick profile audit to keep you the top choice in the area?"`
+        : trigger.kind === 'festival_upcoming'
+        ? `An upcoming festival is relevant to this merchant.
+CRITICAL FACTS TO USE VERBATIM:
+- Festival: ${trigger.payload?.festival || '?'}, date: ${trigger.payload?.date || '?'}, days until: ${trigger.payload?.days_until || '?'}
+- Merchant active offer: ${offerTitle}
+- Category relevance: ${(trigger.payload?.category_relevance || []).join(', ')}
+INSTRUCTIONS:
+1. Open with the time window: "${trigger.payload?.festival || 'The festival'} is on ${trigger.payload?.date || '?'} — ${trigger.payload?.days_until || '?'} days away. Bridal and grooming bookings start 6-8 weeks before."
+2. Connect to their active offer (${offerTitle}) and suggest an immediate post or campaign.
+3. Close with ONE low-effort CTA: "Want me to draft a ${trigger.payload?.festival || 'festival'} season GBP post and offer spotlight for your profile today?"`
         : `An event is relevant to this merchant.
-1. Ground in specific dates, numbers, or seasonal demand percentage shifts from trigger_data.
-2. Suggest ONE specific action tied to their active catalog.
+CRITICAL FACTS TO USE VERBATIM:
+- Merchant: ${merchant.identity?.name}, ${merchant.identity?.locality}
+- Active offer: ${offerTitle}, views: ${views || '?'}, calls: ${calls || '?'}
+1. Ground in specific dates, numbers, or seasonal demand shifts from trigger_data.
+2. Suggest ONE specific action tied to their active catalog (${offerTitle}).
 3. Close with ONE binary next step.`,
     }),
   };
@@ -273,6 +344,12 @@ function buildEventPrompt({ category, merchant, trigger, customer }) {
 
 // 6. Business / operational family (renewal, winback, GBP, reviews)
 function buildBusinessPrompt({ category, merchant, trigger, customer }) {
+  const views = merchant.performance?.views;
+  const calls = merchant.performance?.calls;
+  const peerMedianViews = category.peer_stats?.views_p50;
+  const activeOffers = merchant.offers?.filter((o) => o.status === 'active') || [];
+  const offerTitle = activeOffers[0]?.title || 'your active service';
+
   return {
     system: buildSystemPrompt(category, merchant, customer),
     user: JSON.stringify({
@@ -283,26 +360,56 @@ function buildBusinessPrompt({ category, merchant, trigger, customer }) {
       category_peer_stats: category.peer_stats,
       category_slug: category.slug,
       instruction: trigger.kind === 'renewal_due'
-        ? `Subscription renewal is due.
-1. Lead with tangible VALUE the merchant has received (quote their exact views and calls metrics).
-2. State the renewal date clearly.
-3. Close with ONE low-effort binary CTA: "Want me to renew your subscription automatically to maintain active tracking?"`
+        ? `Subscription renewal is due in ${trigger.payload?.days_remaining || '?'} days.
+CRITICAL FACTS TO USE VERBATIM:
+- Plan: ${trigger.payload?.plan || 'Pro'}, Renewal amount: ₹${trigger.payload?.renewal_amount || '?'}
+- Merchant current performance: ${views || '?'} profile views, ${calls || '?'} calls this month
+- Peer median views: ${peerMedianViews || 'peer benchmark'}
+INSTRUCTIONS:
+1. Lead with tangible VALUE: "Your ${trigger.payload?.plan || 'Pro'} subscription has delivered ${views || '?'} profile views and ${calls || '?'} calls this month."
+2. Create urgency: "Renewal is due in ${trigger.payload?.days_remaining || '?'} days — lapsing now means losing visibility right before peak season."
+3. Close with ONE binary CTA: "Want me to keep your profile live? Reply YES and I will confirm the ₹${trigger.payload?.renewal_amount || '?'} renewal."`
         : trigger.kind === 'gbp_unverified'
-        ? `Merchant's Google Business Profile is unverified.
-1. Cite the concrete peer benchmark (verified profiles in their locality receive 45% more direct customer calls).
-2. Explain what they are missing with estimated uplift percentage.
-3. Close with ONE low-friction action: "Want me to guide you through the 3-minute verification steps?"`
+        ? `Merchant's Google Business Profile is unverified — they are losing 30-45% of potential customer calls.
+CRITICAL FACTS TO USE VERBATIM:
+- Estimated uplift from trigger: ${trigger.payload?.estimated_uplift_pct ? Math.round(trigger.payload.estimated_uplift_pct * 100) + '%' : '30-45%'} more calls
+- Verification path: ${trigger.payload?.verification_path || 'postcard or phone call'}
+INSTRUCTIONS:
+1. Open with the missed opportunity: "Without GBP verification, you are missing an estimated ${trigger.payload?.estimated_uplift_pct ? Math.round(trigger.payload.estimated_uplift_pct * 100) + '%' : '30%'} more direct customer calls."
+2. Make the fix sound fast and easy: "Verification takes 3 minutes via ${trigger.payload?.verification_path || 'a Google postcard or phone call'}."
+3. Close with ONE low-friction action: "Want me to walk you through the 3-minute steps right now?"`
         : trigger.kind === 'review_theme_emerged'
         ? `A review theme has emerged in trigger_data.
-1. Cite the specific theme, sentiment, count, and representative quote.
-2. If negative: frame constructively as an opportunity to fix operations. If positive: suggest amplifying it.
-3. Close with ONE concrete next step: "Want me to draft a professional response for your Google profile?"`
+CRITICAL FACTS TO USE VERBATIM:
+- Theme: ${trigger.payload?.theme}, occurrences: ${trigger.payload?.occurrences_30d} in 30 days
+- Trend: ${trigger.payload?.trend || 'stable'}
+- Customer quote: "${trigger.payload?.common_quote || ''}"
+INSTRUCTIONS:
+1. Cite the specific theme ("${trigger.payload?.theme || 'service issue'}"), occurrence count (${trigger.payload?.occurrences_30d || '?'} mentions in 30 days), and the exact customer quote.
+2. If negative: frame as an operational fix opportunity. If positive: suggest amplifying it with a GBP post.
+3. Close with ONE concrete next step: "Want me to draft a professional response for your Google profile today?"`
         : trigger.kind === 'supply_alert'
         ? `URGENT supply or compliance alert.
-1. State critical details (molecule, affected batch numbers, manufacturer).
-2. Clinical, precise, trustworthy tone.
-3. Close with ONE direct action: "Want me to draft an advisory notice for your patient roster?"`
-        : `Address this operational trigger with specific data from trigger_data in English. End with ONE clear CTA.`,
+CRITICAL FACTS TO USE VERBATIM:
+- Molecule: ${trigger.payload?.molecule || '?'}
+- Affected batches: ${(trigger.payload?.affected_batches || []).join(', ')}
+INSTRUCTIONS:
+1. State critical details: molecule (${trigger.payload?.molecule}), affected batch numbers (${(trigger.payload?.affected_batches || []).join(', ')}), and patient risk.
+2. Precise, clinical, trustworthy pharmacy tone — no promotional language.
+3. Close with ONE direct action: "Want me to draft an advisory notice for your affected patient roster?"`
+        : trigger.kind === 'winback_eligible'
+        ? `Subscription lapsed — winback opportunity.
+CRITICAL FACTS TO USE VERBATIM:
+- Days since expiry: ${trigger.payload?.days_since_expiry || '?'} days
+- Performance dip since expiry: ${trigger.payload?.perf_dip_pct ? Math.round(trigger.payload.perf_dip_pct * 100) + '%' : '?%'} drop
+- Lapsed customers added since expiry: ${trigger.payload?.lapsed_customers_added_since_expiry || '?'}
+- Current views: ${views || '?'}, calls: ${calls || '?'}
+- Peer median views: ${peerMedianViews || 'peer benchmark'}
+INSTRUCTIONS:
+1. Open with the concrete cost of lapsing: "Since your plan expired ${trigger.payload?.days_since_expiry || '?'} days ago, your profile visibility has dropped ${trigger.payload?.perf_dip_pct ? Math.round(trigger.payload.perf_dip_pct * 100) + '%' : '?%'} — and ${trigger.payload?.lapsed_customers_added_since_expiry || '?'} new customers could not find you."
+2. Make reactivation sound instant and risk-free.
+3. Close with ONE binary CTA: "Want me to reactivate your profile now? Reply YES and I will sort it in 2 minutes."`
+        : `Address this operational trigger with specific data from trigger_data in English. Use exact merchant metrics (${views || '?'} views, ${calls || '?'} calls). End with ONE clear CTA.`,
     }),
   };
 }
