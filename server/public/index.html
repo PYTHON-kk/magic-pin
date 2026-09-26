@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vera AI — magicpin Merchant Assistant</title>
+  <meta name="description" content="Interactive WhatsApp Assistant for local merchants on magicpin — powered by 4-context AI composition engine.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+</head>
+<body class="theme-dark">
+  <div class="app-container">
+    
+    <!-- LEFT SIDEBAR: Controls, Context & Diagnostics -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-logo">
+            <span class="logo-icon">🪄</span>
+          </div>
+          <div class="brand-text">
+            <h2>Vera AI</h2>
+            <span class="badge-magicpin">magicpin</span>
+          </div>
+        </div>
+        <div class="connection-status" id="connectionStatus" title="API Status">
+          <span class="status-dot"></span>
+          <span class="status-label">Checking...</span>
+        </div>
+      </div>
+
+      <!-- Backend Connection Settings -->
+      <div class="card backend-selector">
+        <div class="card-title">Backend Connection</div>
+        <div class="input-group">
+          <input type="text" id="backendUrl" value="" placeholder="https://vera-bot-r8yd.onrender.com" />
+          <button id="btnConnect" class="btn btn-secondary btn-sm">Ping</button>
+        </div>
+        <div class="latency-row">
+          <span id="latencyDisplay" class="latency-chip">Latency: -- ms</span>
+          <span id="modelDisplay" class="model-chip">Model: gemini</span>
+        </div>
+      </div>
+
+      <!-- Merchant Persona Switcher -->
+      <div class="card merchant-card">
+        <div class="card-title">Active Merchant Persona</div>
+        <select id="merchantSelect" class="form-select">
+          <option value="m_001_drmeera_dentist_delhi" selected>Dr. Meera's Dental Clinic (Dentist)</option>
+          <option value="m_003_studio11_salon_hyderabad">Studio11 Family Salon (Salon)</option>
+          <option value="m_005_powerhouse_gym_pune">Powerhouse Fitness (Gym)</option>
+          <option value="m_007_zen_ayurveda_bangalore">Zen Ayurveda & Wellness (Clinic)</option>
+          <option value="m_009_sunrise_pharma_delhi">Sunrise Pharmacy (Pharmacy)</option>
+        </select>
+        
+        <div class="merchant-metrics" id="merchantMetrics">
+          <div class="metric-item">
+            <span class="metric-val" id="metricViews">1,420</span>
+            <span class="metric-lbl">Views</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-val" id="metricCalls">38</span>
+            <span class="metric-lbl">Calls</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-val" id="metricCtr">4.2%</span>
+            <span class="metric-lbl">CTR</span>
+          </div>
+        </div>
+        <div class="merchant-tags" id="merchantTags">
+          <span class="tag">peer_clinical</span>
+          <span class="tag">Lajpat Nagar</span>
+          <span class="tag">hi, en</span>
+        </div>
+      </div>
+
+      <!-- Fast Testing Probes -->
+      <div class="card probes-card">
+        <div class="card-title">One-Click Behavioral Tests</div>
+        <p class="card-desc">Simulate scenarios evaluated by the judge harness:</p>
+        <div class="pill-list">
+          <button class="probe-pill" data-msg="Hi Vera, can you help me get more patient footfall this week?">
+            📊 <span>Ask Performance</span>
+          </button>
+          <button class="probe-pill" data-msg="Haan theek hai, chalo karte hain, sign me up">
+            🚀 <span>Intent Handoff</span>
+          </button>
+          <button class="probe-pill" data-msg="Thank you for contacting us. Our team will get back to you shortly.">
+            🤖 <span>Auto-Reply Loop</span>
+          </button>
+          <button class="probe-pill" data-msg="Stop messaging me. This is spam.">
+            🛑 <span>Hostile Opt-Out</span>
+          </button>
+          <button class="probe-pill" data-msg="Wait, who are you and how did you get this number?">
+            ❓ <span>Curveball Question</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Proactive Actions / Tools -->
+      <div class="sidebar-actions">
+        <button id="btnTick" class="btn btn-primary btn-block">
+          <span class="btn-icon">⚡</span> Run /v1/tick (Proactive Campaigns)
+        </button>
+        <div class="btn-row">
+          <button id="btnSeedContext" class="btn btn-secondary btn-sm" title="Push categories, merchants, and triggers">
+            🌱 Seed Context
+          </button>
+          <button id="btnTeardown" class="btn btn-danger btn-sm" title="Clear in-memory state & suppression locks">
+            🧹 Reset Session
+          </button>
+        </div>
+      </div>
+
+      <!-- Footer Info -->
+      <div class="sidebar-footer">
+        <span>Team Vera • magicpin AI Challenge</span>
+        <button id="btnSoundToggle" class="icon-btn" title="Toggle Sound">🔊</button>
+      </div>
+    </aside>
+
+    <!-- MAIN CHAT CONTAINER (WhatsApp Web Simulation) -->
+    <main class="chat-viewport">
+      
+      <!-- WhatsApp Chat Header -->
+      <header class="chat-header">
+        <div class="chat-header-user">
+          <div class="avatar-wrapper">
+            <div class="avatar vera-avatar">V</div>
+            <span class="online-indicator"></span>
+          </div>
+          <div class="user-details">
+            <div class="user-name-row">
+              <h1 class="user-name">Vera AI</h1>
+              <span class="verified-badge" title="Verified magicpin Business Assistant">
+                <svg viewBox="0 0 18 18" width="16" height="16" fill="#00A884">
+                  <path d="M9 0L10.8 2.2L13.6 1.8L14.4 4.5L17.1 5.6L16.6 8.4L18 10.8L15.8 12.6L16.2 15.4L13.5 16.2L12.4 18.9L9.6 18.4L7.2 19.8L5.4 17.6L2.6 18L1.8 15.3L-0.9 14.2L-0.4 11.4L-1.8 9L0.4 7.2L0 4.4L2.7 3.6L3.8 0.9L6.6 1.4L9 0ZM12.7 6.3L7.8 11.2L5.3 8.7L4.2 9.8L7.8 13.3L13.8 7.4L12.7 6.3Z"/>
+                </svg>
+              </span>
+              <span class="bot-tag">Official Assistant</span>
+            </div>
+            <div class="user-subtext" id="userSubtext">
+              Talking as <span id="currentMerchantName">Dr. Meera's Dental Clinic</span> • online
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-header-actions">
+          <button id="btnClearChat" class="icon-btn" title="Clear Messages">🗑️</button>
+          <button id="btnExportChat" class="icon-btn" title="Export Conversation">📥</button>
+        </div>
+      </header>
+
+      <!-- Message History Container -->
+      <section class="messages-container" id="messagesContainer">
+        <!-- System encryption banner -->
+        <div class="system-message">
+          <span class="lock-icon">🔒</span>
+          <span>Messages are end-to-end encrypted with magicpin 4-Context Vera Engine. No external data leaks.</span>
+        </div>
+
+        <!-- Welcome Message -->
+        <div class="message-wrapper message-bot">
+          <div class="bubble">
+            <div class="message-sender">Vera AI</div>
+            <div class="message-text">
+              Namaste Dr. Meera! Main Vera hoon, magicpin se aapki dedicated merchant assistant. Main aapke Google Business Profile, active offers, aur patient recalls ko monitor kar rahi hoon. Main aaj aapki kya help kar sakti hoon?
+            </div>
+            <div class="message-footer">
+              <span class="msg-time" id="welcomeTime">10:00 AM</span>
+            </div>
+            <div class="bubble-meta">
+              <span class="meta-pill cta-pill">open_ended</span>
+              <span class="meta-pill role-pill">vera</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick Suggestion Bar -->
+      <div class="quick-suggestions" id="quickSuggestions">
+        <button class="chip" data-msg="Hamare Google profile par calls kaise badhayein?">📞 Badhao Calls</button>
+        <button class="chip" data-msg="Haan theek hai, chalo karte hain">✅ Confirm Post</button>
+        <button class="chip" data-msg="What are my active offers right now?">🏷️ Active Offers</button>
+        <button class="chip" data-msg="How do I compare against other clinics in Lajpat Nagar?">📈 Peer Stats</button>
+      </div>
+
+      <!-- Chat Input Area -->
+      <footer class="chat-input-bar">
+        <div class="input-actions-left">
+          <button class="icon-btn" id="btnEmoji" title="Emoji">😊</button>
+          <button class="icon-btn" id="btnAttach" title="Attach">📎</button>
+        </div>
+
+        <div class="input-field-wrapper">
+          <textarea 
+            id="messageInput" 
+            placeholder="Type a message as merchant (English or Hinglish)..." 
+            rows="1"
+            maxlength="1000"
+          ></textarea>
+        </div>
+
+        <button id="btnSend" class="send-btn" title="Send message (Enter)">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
+      </footer>
+
+    </main>
+
+    <!-- RIGHT DRAWER: Live Proactive Feed & Insights Modal -->
+    <div class="drawer" id="tickDrawer">
+      <div class="drawer-header">
+        <div class="drawer-title">
+          <span>⚡ Live /v1/tick Proactive Feed</span>
+        </div>
+        <button class="icon-btn" id="btnCloseDrawer">✕</button>
+      </div>
+      <div class="drawer-body" id="tickDrawerBody">
+        <p class="drawer-empty">Click "Run /v1/tick" on the sidebar to evaluate candidate triggers.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

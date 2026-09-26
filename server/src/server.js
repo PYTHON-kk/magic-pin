@@ -5,6 +5,7 @@
  * No external dependencies beyond the LLM provider.
  */
 
+const path = require('path');
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -15,9 +16,26 @@ const challengeRoutes = require('./routes/challenge.routes');
 const app = express();
 
 /* ─── Middleware ─── */
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'", '*'],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  })
+);
 app.use(cors());
 app.use(express.json({ limit: '600kb' })); // Context payload cap is 500KB, give headroom
+
+// Serve static assets from public/ directory
+app.use(express.static(path.join(__dirname, '../public'), { index: false }));
 
 // Request logging (lightweight)
 app.use((req, res, next) => {
@@ -38,7 +56,15 @@ app.use((req, res, next) => {
 });
 
 /* ─── Routes ─── */
+app.get(['/chat', '/app', '/ui'], (_req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
 app.get('/', (req, res) => {
+  const accepts = req.headers.accept || '';
+  if (accepts.includes('text/html')) {
+    return res.sendFile(path.join(__dirname, '../public/index.html'));
+  }
   res.json({
     bot: 'Vera AI — magicpin Assistant',
     status: 'online',

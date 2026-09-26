@@ -6,8 +6,9 @@ WORKDIR /app
 COPY server/package*.json ./
 RUN npm ci --only=production
 
-# Copy server application source code
+# Copy server application source code and public assets
 COPY server/src/ ./src/
+COPY server/public/ ./public/
 
 EXPOSE 8080
 
