@@ -125,73 +125,44 @@
     </aside>
 
     <!-- =========================================================================
-         PERSONA SELECTION SCREEN (Entry Flow)
+         PERSONA SELECTION SCREEN (Minimal Centered Picker)
          ========================================================================= -->
     <div class="persona-screen" id="personaScreen">
-      <div class="persona-wrapper">
+      <div class="persona-picker-card">
         
-        <!-- Top Bar -->
-        <div class="persona-top-bar">
-          <div class="persona-brand">
-            <div class="brand-logo">
-              <span class="logo-icon">🪄</span>
-            </div>
-            <div class="brand-text">
-              <h2>Vera AI</h2>
-              <span class="badge-magicpin">magicpin</span>
-            </div>
+        <!-- Header -->
+        <div class="picker-header">
+          <div class="picker-brand">
+            <span class="picker-brand-logo">🪄</span>
+            <span class="picker-brand-name">Vera AI</span>
+            <span class="badge-magicpin">magicpin</span>
           </div>
-          <div class="persona-top-actions">
-            <button id="btnPersonaDevMode" class="btn-dev-toggle" title="Toggle Developer / Judge Diagnostic View">
-              <span class="dev-toggle-icon">🛠️</span>
-              <span class="dev-toggle-text">Dev Mode</span>
-            </button>
-          </div>
+          <h1 class="picker-title">Who are you talking as?</h1>
         </div>
 
-        <!-- Hero Title -->
-        <div class="persona-hero">
-          <h1 class="persona-hero-title">Who are you chatting as?</h1>
-          <p class="persona-hero-subtitle">Select a local merchant partner or customer to start a simulated WhatsApp session with Vera AI.</p>
+        <!-- Role Toggle Tabs -->
+        <div class="picker-tabs">
+          <button class="picker-tab active" id="tabMerchant" data-role="merchant">
+            Merchant <span class="picker-tab-count" id="countMerchants">10</span>
+          </button>
+          <button class="picker-tab" id="tabCustomer" data-role="customer">
+            Customer <span class="picker-tab-count" id="countCustomers">15</span>
+          </button>
         </div>
 
-        <!-- Role Tabs: Merchant vs Customer -->
-        <div class="role-tabs-container">
-          <div class="role-tabs">
-            <button class="role-tab active" id="tabMerchant" data-role="merchant">
-              <span class="tab-icon">🏢</span>
-              <span class="tab-text">Local Merchants</span>
-              <span class="tab-count" id="countMerchants">10</span>
-            </button>
-            <button class="role-tab" id="tabCustomer" data-role="customer">
-              <span class="tab-icon">👤</span>
-              <span class="tab-text">Customers & Patients</span>
-              <span class="tab-count" id="countCustomers">15</span>
-            </button>
-          </div>
+        <!-- Plain search input -->
+        <div class="picker-search-wrapper" id="pickerSearchWrapper">
+          <input 
+            type="text" 
+            id="personaSearchInput" 
+            class="picker-search-input" 
+            placeholder="Search..." 
+            autocomplete="off" 
+          />
         </div>
 
-        <!-- Search & Filter Controls -->
-        <div class="persona-filter-controls">
-          <div class="persona-search-box">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="personaSearchInput" placeholder="Search by name, category, or city..." autocomplete="off" />
-            <button id="btnClearSearch" class="btn-clear-search" style="display: none;">✕</button>
-          </div>
-          
-          <div class="persona-category-pills" id="categoryPills">
-            <button class="cat-pill active" data-cat="all">All</button>
-            <button class="cat-pill" data-cat="dentists">🩺 Dentists</button>
-            <button class="cat-pill" data-cat="salons">💇 Salons</button>
-            <button class="cat-pill" data-cat="gyms">🏋️ Gyms</button>
-            <button class="cat-pill" data-cat="clinics">🌿 Clinics</button>
-            <button class="cat-pill" data-cat="pharmacies">💊 Pharmacies</button>
-            <button class="cat-pill" data-cat="restaurants">🍕 Restaurants</button>
-          </div>
-        </div>
-
-        <!-- Scrollable Persona Cards Grid -->
-        <div class="persona-cards-grid" id="personaCardsGrid">
+        <!-- Vertical list of selectable rows -->
+        <div class="picker-list" id="pickerList">
           <!-- Populated dynamically by app.js -->
         </div>
 

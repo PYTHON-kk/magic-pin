@@ -258,16 +258,14 @@
     btnSwitchPersona: document.getElementById('btnSwitchPersona'),
     activePersonaTitle: document.getElementById('activePersonaTitle'),
     btnDevMode: document.getElementById('btnDevMode'),
-    btnPersonaDevMode: document.getElementById('btnPersonaDevMode'),
     btnCloseDevSidebar: document.getElementById('btnCloseDevSidebar'),
     tabMerchant: document.getElementById('tabMerchant'),
     tabCustomer: document.getElementById('tabCustomer'),
     countMerchants: document.getElementById('countMerchants'),
     countCustomers: document.getElementById('countCustomers'),
+    pickerSearchWrapper: document.getElementById('pickerSearchWrapper'),
     personaSearchInput: document.getElementById('personaSearchInput'),
-    btnClearSearch: document.getElementById('btnClearSearch'),
-    categoryPills: document.getElementById('categoryPills'),
-    personaCardsGrid: document.getElementById('personaCardsGrid'),
+    pickerList: document.getElementById('pickerList'),
     backendUrl: document.getElementById('backendUrl'),
     btnConnect: document.getElementById('btnConnect'),
     connectionStatus: document.getElementById('connectionStatus'),
@@ -395,7 +393,7 @@
                 initialChips: localMatch?.initialChips || ['Show active offers', 'Badhao calls', 'Compare to peers'],
               };
             });
-            renderPersonaGrid();
+            renderPickerList();
           }
         } catch (_) {}
       } else {
@@ -425,225 +423,137 @@
   }
 
   // ─── Persona Screen Management ───
+  // ─── Persona Screen Management (Minimal Centered Picker) ───
   function initPersonaScreen() {
     // Role Tab Switching
     el.tabMerchant.addEventListener('click', () => {
       state.activeRoleTab = 'merchant';
       el.tabMerchant.classList.add('active');
       el.tabCustomer.classList.remove('active');
-      updateCategoryPillsForRole('merchant');
-      renderPersonaGrid();
+      state.searchQuery = '';
+      if (el.personaSearchInput) el.personaSearchInput.value = '';
+      renderPickerList();
     });
 
     el.tabCustomer.addEventListener('click', () => {
       state.activeRoleTab = 'customer';
       el.tabCustomer.classList.add('active');
       el.tabMerchant.classList.remove('active');
-      updateCategoryPillsForRole('customer');
-      renderPersonaGrid();
-    });
-
-    // Search input
-    el.personaSearchInput.addEventListener('input', (e) => {
-      state.searchQuery = e.target.value.trim().toLowerCase();
-      el.btnClearSearch.style.display = state.searchQuery ? 'block' : 'none';
-      renderPersonaGrid();
-    });
-
-    el.btnClearSearch.addEventListener('click', () => {
       state.searchQuery = '';
-      el.personaSearchInput.value = '';
-      el.btnClearSearch.style.display = 'none';
-      renderPersonaGrid();
+      if (el.personaSearchInput) el.personaSearchInput.value = '';
+      renderPickerList();
     });
 
-    // Category filter pills
-    el.categoryPills.addEventListener('click', (e) => {
-      const pill = e.target.closest('.cat-pill');
-      if (pill) {
-        el.categoryPills.querySelectorAll('.cat-pill').forEach((p) => p.classList.remove('active'));
-        pill.classList.add('active');
-        state.activeCategoryFilter = pill.getAttribute('data-cat');
-        renderPersonaGrid();
-      }
-    });
+    // Lightweight Search Input (if present)
+    if (el.personaSearchInput) {
+      el.personaSearchInput.addEventListener('input', (e) => {
+        state.searchQuery = e.target.value.trim().toLowerCase();
+        renderPickerList();
+      });
+    }
 
     // Switch button in chat header
     el.btnSwitchPersona.addEventListener('click', openPersonaScreen);
 
     // Initial render
-    renderPersonaGrid();
+    renderPickerList();
   }
 
-  function updateCategoryPillsForRole(role) {
-    if (role === 'merchant') {
-      el.categoryPills.innerHTML = `
-        <button class="cat-pill active" data-cat="all">All</button>
-        <button class="cat-pill" data-cat="dentists">🩺 Dentists</button>
-        <button class="cat-pill" data-cat="salons">💇 Salons</button>
-        <button class="cat-pill" data-cat="gyms">🏋️ Gyms</button>
-        <button class="cat-pill" data-cat="clinics">🌿 Clinics</button>
-        <button class="cat-pill" data-cat="pharmacies">💊 Pharmacies</button>
-        <button class="cat-pill" data-cat="restaurants">🍕 Restaurants</button>
-      `;
-    } else {
-      el.categoryPills.innerHTML = `
-        <button class="cat-pill active" data-cat="all">All</button>
-        <button class="cat-pill" data-cat="active">✅ Active</button>
-        <button class="cat-pill" data-cat="lapsed">⏳ Lapsed Recall</button>
-        <button class="cat-pill" data-cat="dentist">🩺 Dental Patients</button>
-        <button class="cat-pill" data-cat="salon">💇 Salon Clients</button>
-      `;
-    }
-    state.activeCategoryFilter = 'all';
-  }
-
-  function renderPersonaGrid() {
+  function renderPickerList() {
     el.countMerchants.textContent = state.merchantsList.length;
     el.countCustomers.textContent = state.customersList.length;
-    el.personaCardsGrid.innerHTML = '';
+    el.pickerList.innerHTML = '';
+
+    const isMerchant = state.activeRoleTab === 'merchant';
+    const sourceList = isMerchant ? state.merchantsList : state.customersList;
+
+    // Show lightweight search ONLY if list has > 8 items
+    if (el.pickerSearchWrapper) {
+      if (sourceList.length > 8) {
+        el.pickerSearchWrapper.style.display = 'block';
+        if (el.personaSearchInput) {
+          el.personaSearchInput.placeholder = isMerchant 
+            ? 'Search merchants by name or city...' 
+            : 'Search customers by name...';
+        }
+      } else {
+        el.pickerSearchWrapper.style.display = 'none';
+      }
+    }
 
     const q = state.searchQuery;
-    const cat = state.activeCategoryFilter;
 
-    if (state.activeRoleTab === 'merchant') {
-      const filtered = state.merchantsList.filter((m) => {
+    if (isMerchant) {
+      const filtered = sourceList.filter((m) => {
+        if (!q) return true;
         const name = (m.identity?.name || '').toLowerCase();
         const city = (m.identity?.city || '').toLowerCase();
         const locality = (m.identity?.locality || '').toLowerCase();
-        const slug = (m.category_slug || '').toLowerCase();
-
-        const matchesQuery = !q || name.includes(q) || city.includes(q) || locality.includes(q) || slug.includes(q);
-        const matchesCat = cat === 'all' || slug === cat;
-        return matchesQuery && matchesCat;
+        const cat = (m.category_name || m.category_slug || '').toLowerCase();
+        return name.includes(q) || city.includes(q) || locality.includes(q) || cat.includes(q);
       });
 
       if (filtered.length === 0) {
-        el.personaCardsGrid.innerHTML = `<div class="drawer-empty" style="grid-column: 1/-1;">No matching merchants found.</div>`;
+        el.pickerList.innerHTML = `<div class="picker-empty">No matching merchants found.</div>`;
         return;
       }
 
       filtered.forEach((m) => {
-        const card = document.createElement('div');
-        card.className = 'persona-card';
-        const activeOffers = (m.offers || []).filter((o) => o.status === 'active');
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'picker-row';
 
-        card.innerHTML = `
-          <div class="card-top-row">
-            <div class="card-avatar">${m.icon || getCategoryIcon(m.category_slug)}</div>
-            <div class="card-header-info">
-              <div class="card-name-row">
-                <span class="card-persona-name">${m.identity?.name || 'Local Merchant'}</span>
-                <span class="verified-badge" title="Verified magicpin Partner">
-                  <svg viewBox="0 0 18 18" width="14" height="14" fill="#00A884">
-                    <path d="M9 0L10.8 2.2L13.6 1.8L14.4 4.5L17.1 5.6L16.6 8.4L18 10.8L15.8 12.6L16.2 15.4L13.5 16.2L12.4 18.9L9.6 18.4L7.2 19.8L5.4 17.6L2.6 18L1.8 15.3L-0.9 14.2L-0.4 11.4L-1.8 9L0.4 7.2L0 4.4L2.7 3.6L3.8 0.9L6.6 1.4L9 0ZM12.7 6.3L7.8 11.2L5.3 8.7L4.2 9.8L7.8 13.3L13.8 7.4L12.7 6.3Z"/>
-                  </svg>
-                </span>
-              </div>
-              <div class="card-persona-sub">
-                <span>${m.category_name || m.category_slug}</span> • <span>${m.identity?.locality || ''}, ${m.identity?.city || ''}</span>
-              </div>
-            </div>
+        const name = m.identity?.name || 'Local Merchant';
+        const locParts = [m.identity?.locality, m.identity?.city].filter(Boolean);
+        const loc = locParts.join(', ');
+        const cat = m.category_name || (m.category_slug ? m.category_slug.charAt(0).toUpperCase() + m.category_slug.slice(1) : 'Merchant');
+        const sub = loc ? `${cat} · ${loc}` : cat;
+
+        row.innerHTML = `
+          <div class="picker-row-info">
+            <span class="picker-row-name">${name}</span>
+            <span class="picker-row-sub">${sub}</span>
           </div>
-
-          <div class="card-stats-row">
-            <div class="stat-chip">
-              <span class="stat-chip-val">${(m.performance?.views || 1420).toLocaleString()}</span>
-              <span class="stat-chip-lbl">Views</span>
-            </div>
-            <div class="stat-chip">
-              <span class="stat-chip-val">${m.performance?.calls || 38}</span>
-              <span class="stat-chip-lbl">Calls</span>
-            </div>
-            <div class="stat-chip">
-              <span class="stat-chip-val">${((m.performance?.ctr || 0.042) * 100).toFixed(1)}%</span>
-              <span class="stat-chip-lbl">CTR</span>
-            </div>
-          </div>
-
-          ${activeOffers.length > 0 ? `<div class="card-offer-tag">🏷️ ${activeOffers[0].title}</div>` : ''}
-
-          <div class="card-footer-row">
-            <span class="card-tone-badge">Tone: ${m.tone || 'peer_clinical'}</span>
-            <span class="card-action-btn">Chat as Merchant →</span>
-          </div>
+          <span class="picker-row-arrow">›</span>
         `;
 
-        card.addEventListener('click', () => selectPersona(m, 'merchant'));
-        el.personaCardsGrid.appendChild(card);
+        row.addEventListener('click', () => selectPersona(m, 'merchant'));
+        el.pickerList.appendChild(row);
       });
     } else {
-      // Customer view
-      const filtered = state.customersList.filter((c) => {
+      // Customer list
+      const filtered = sourceList.filter((c) => {
+        if (!q) return true;
         const name = (c.identity?.name || '').toLowerCase();
         const mName = (c.merchant_name || '').toLowerCase();
-        const catName = (c.category || '').toLowerCase();
-        const status = (c.state || '').toLowerCase();
-
-        const matchesQuery = !q || name.includes(q) || mName.includes(q) || catName.includes(q);
-        let matchesCat = true;
-        if (cat === 'active') matchesCat = status === 'active';
-        if (cat === 'lapsed') matchesCat = status.includes('lapsed');
-        if (cat === 'dentist') matchesCat = catName.includes('dentist');
-        if (cat === 'salon') matchesCat = catName.includes('salon');
-
-        return matchesQuery && matchesCat;
+        const cat = (c.category || '').toLowerCase();
+        return name.includes(q) || mName.includes(q) || cat.includes(q);
       });
 
       if (filtered.length === 0) {
-        el.personaCardsGrid.innerHTML = `<div class="drawer-empty" style="grid-column: 1/-1;">No matching customers found.</div>`;
+        el.pickerList.innerHTML = `<div class="picker-empty">No matching customers found.</div>`;
         return;
       }
 
       filtered.forEach((c) => {
-        const card = document.createElement('div');
-        card.className = 'persona-card';
-        const initial = (c.identity?.name || 'C').charAt(0).toUpperCase();
-        const isLapsed = (c.state || '').includes('lapsed');
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'picker-row';
 
-        card.innerHTML = `
-          <div class="card-top-row">
-            <div class="card-avatar" style="background: rgba(56, 189, 248, 0.15); color: #38BDF8;">${initial}</div>
-            <div class="card-header-info">
-              <div class="card-name-row">
-                <span class="card-persona-name">${c.identity?.name}</span>
-                <span class="tag" style="background:${isLapsed ? 'rgba(255,183,3,0.15);color:#FFB703' : 'rgba(0,168,132,0.15);color:#00A884'}">
-                  ${c.state || 'active'}
-                </span>
-              </div>
-              <div class="card-persona-sub">
-                <span>Client of ${c.merchant_name}</span>
-              </div>
-            </div>
-          </div>
+        const name = c.identity?.name || 'Customer';
+        const mName = c.merchant_name || 'Partner Merchant';
+        const sub = c.category ? `${c.category} · ${mName}` : `Customer · ${mName}`;
 
-          <div class="card-stats-row">
-            <div class="stat-chip">
-              <span class="stat-chip-val">${c.relationship?.visits_total || 1}</span>
-              <span class="stat-chip-lbl">Visits</span>
-            </div>
-            <div class="stat-chip">
-              <span class="stat-chip-val">₹${(c.relationship?.lifetime_value || 0).toLocaleString()}</span>
-              <span class="stat-chip-lbl">LTV</span>
-            </div>
-            <div class="stat-chip">
-              <span class="stat-chip-val">${c.identity?.language_pref || 'hi-en'}</span>
-              <span class="stat-chip-lbl">Language</span>
-            </div>
+        row.innerHTML = `
+          <div class="picker-row-info">
+            <span class="picker-row-name">${name}</span>
+            <span class="picker-row-sub">${sub}</span>
           </div>
-
-          <div class="card-offer-tag" style="background: rgba(0, 168, 132, 0.1); color: var(--color-brand-wa);">
-            📌 Last service: ${c.relationship?.last_service || 'Consultation'}
-          </div>
-
-          <div class="card-footer-row">
-            <span class="card-tone-badge">Age: ${c.identity?.age_band || 'adult'}</span>
-            <span class="card-action-btn">Chat as ${c.identity?.name.split(' ')[0]} →</span>
-          </div>
+          <span class="picker-row-arrow">›</span>
         `;
 
-        card.addEventListener('click', () => selectPersona(c, 'customer'));
-        el.personaCardsGrid.appendChild(card);
+        row.addEventListener('click', () => selectPersona(c, 'customer'));
+        el.pickerList.appendChild(row);
       });
     }
   }
