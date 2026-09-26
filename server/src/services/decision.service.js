@@ -62,18 +62,27 @@ async function processTickActions(availableTriggerIds, now) {
     eligible.push({ trgId, trigger, merchant, category, customer });
   }
 
-  // 4. Process up to 6 highest-urgency triggers in parallel to avoid Render gateway timeout
-  const batch = eligible.slice(0, 6);
-  const results = await Promise.allSettled(
-    batch.map(({ trgId, trigger, merchant, category, customer }) =>
-      composeActionForTrigger({ trgId, trigger, merchant, category, customer, nowDate })
-    )
-  );
+  // 4. Process eligible triggers in small parallel waves to stay within the judge's 15s tick timeout.
+  //    3 concurrent LLM calls = ~6-10s worst case on Render free tier (vs 15s timeout).
+  const WAVE_SIZE = 3;
+  const waves = [];
+  for (let i = 0; i < eligible.length; i += WAVE_SIZE) {
+    waves.push(eligible.slice(i, i + WAVE_SIZE));
+  }
 
-  for (const r of results) {
-    if (r.status === 'fulfilled' && r.value) {
-      actions.push(r.value);
+  for (const wave of waves) {
+    const results = await Promise.allSettled(
+      wave.map(({ trgId, trigger, merchant, category, customer }) =>
+        composeActionForTrigger({ trgId, trigger, merchant, category, customer, nowDate })
+      )
+    );
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value) {
+        actions.push(r.value);
+      }
     }
+    // Stop after first successful wave to avoid chaining too many LLM calls in one tick
+    if (actions.length > 0) break;
   }
 
   return actions;
